@@ -1,0 +1,11 @@
+{
+  "name": "mdx",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @mdx/web dev",
+    "dev:wails": "pnpm --filter @mdx/wails dev",
+    "build": "pnpm --filter @mdx/web build",
+    "build:wails": "pnpm --filter @mdx/wails build",
+    "lint": "pnpm -r lint"
+  }
+}
