@@ -11,7 +11,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import { useWorkspaceStore } from "./stores/workspace";
-import { initWails } from "./bridge";
+import { initDesktop } from "./bridge";
 
 // Restore the UI theme before Vue renders to avoid a flash of the wrong mode.
 (function restoreTheme() {
@@ -38,9 +38,9 @@ app.mount("#app");
 if (window.__WAILS_MODE__) {
   // Dynamic import prevents @wailsio/runtime from loading in browser mode.
   import("@wailsio/runtime").then(async ({ Events }) => {
-    // Swap the bridge from BrowserBridge → WailsBridge now that the
+    // Swap the bridge from BrowserBridge → DesktopBridge now that the
     // Go backend communications layer is ready.
-    await initWails();
+    await initDesktop();
 
     // Listen for native menu-driven workspace events from the Go backend.
     try {

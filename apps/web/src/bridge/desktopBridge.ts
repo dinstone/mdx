@@ -1,5 +1,5 @@
 /**
- * WailsBridge — delegates all operations to the Go backend via auto-generated
+ * DesktopBridge — delegates all operations to the Go backend via auto-generated
  * Wails 3 TypeScript bindings.
  */
 
@@ -16,7 +16,7 @@ import * as WorkspaceService from '../../bindings/mdx/internal/service/workspace
 import * as SystemService from '../../bindings/mdx/internal/service/systemservice'
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
-export class WailsBridge implements IServiceBridge {
+export class DesktopBridge implements IServiceBridge {
   readonly isDesktop = true
 
   // -- File ----------------------------------------------------------------
