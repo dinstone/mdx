@@ -187,10 +187,30 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   // Auto-load persisted workspace on startup if available
   loadRecentWorkspaces()
   bridge.getWorkspaceState().then((state) => {
-    if (state.rootPath) applyState(state)
+    if (state.rootPath) {
+      applyState(state)
+    } else {
+      tryAutoOpenRecent()
+    }
   }).catch(() => {
-    /* non-critical */
+    tryAutoOpenRecent()
   })
+
+  function tryAutoOpenRecent() {
+    if (recentWorkspaces.value.length > 0) {
+      open(recentWorkspaces.value[0].path).catch(() => {
+        openTempFallback()
+      })
+    } else {
+      openTempFallback()
+    }
+  }
+
+  function openTempFallback() {
+    open('/Temp').catch(() => {
+      /* non-critical */
+    })
+  }
 
   return {
     // state

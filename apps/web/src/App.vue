@@ -193,8 +193,7 @@ async function copyWechat() {
 }
 
 function openStorage() {
-  // Browser-only placeholder: open temp workspace
-  workspace.open('/Temp').catch(() => {})
+  pickDesktopFolder()
 }
 
 function openImageHost() {
@@ -319,7 +318,7 @@ const workspaceGridColumns = computed(() => {
                 class="btn-primary"
                 @click="selectWorkspace"
               >
-                选择工作区
+                切换工作区
               </button>
             </div>
           </div>

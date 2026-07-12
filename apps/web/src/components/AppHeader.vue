@@ -80,7 +80,7 @@ defineEmits<{
           <polyline points="2 17 12 22 22 17" />
           <polyline points="2 12 12 17 22 12" />
         </svg>
-        <span>存储模式</span>
+        <span>工作区切换</span>
       </button>
 
       <button class="btn-secondary" @click="$emit('openImageHost')">

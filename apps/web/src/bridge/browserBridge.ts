@@ -403,6 +403,7 @@ export class BrowserBridge implements IServiceBridge {
   // -- Workspace -----------------------------------------------------------
 
   async openWorkspace(dirPath: string): Promise<WorkspaceState> {
+    await this._ready
     this._wsRoot = dirPath
     this._activeFile = null
     // Persist workspace root so it survives page reloads
@@ -418,6 +419,7 @@ export class BrowserBridge implements IServiceBridge {
   }
 
   async closeWorkspace(): Promise<void> {
+    await this._ready
     this._wsRoot = null
     this._activeFile = null
     const store = dbTx('workspace', 'readwrite')
@@ -445,7 +447,15 @@ export class BrowserBridge implements IServiceBridge {
   }
 
   async pickFolder(): Promise<WorkspaceState> {
-    const name = typeof window !== 'undefined' ? window.prompt('Workspace folder name?') || 'Temp' : 'Temp'
+    let name = 'Temp'
+    try {
+      // Try File System Access API to pick a real directory
+      const dirHandle = await window.showDirectoryPicker()
+      name = dirHandle.name
+    } catch {
+      // Fallback to prompt if File System Access API is unavailable
+      name = typeof window !== 'undefined' ? window.prompt('Workspace folder name?') || 'Temp' : 'Temp'
+    }
     return this.openWorkspace(`/${name}`)
   }
 
