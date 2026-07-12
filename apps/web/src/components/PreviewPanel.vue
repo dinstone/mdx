@@ -1,0 +1,185 @@
+<script setup lang="ts">
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+
+const props = defineProps<{
+  html: string
+  syncScrollPercent?: number | null
+}>()
+
+const emit = defineEmits<{
+  'scroll-sync': [percent: number]
+}>()
+
+const container = ref<HTMLDivElement>()
+const scrollContainer = ref<HTMLDivElement>()
+const isProgrammaticScroll = ref(false)
+
+let mermaidReady = false
+
+async function ensureMermaid() {
+  if (mermaidReady) return
+  const mermaid = await import('mermaid')
+  mermaid.default.initialize({ startOnLoad: false, securityLevel: 'loose' })
+  mermaidReady = true
+}
+
+watch(
+  () => props.html,
+  async () => {
+    await nextTick()
+    if (!container.value) return
+    const nodes = container.value.querySelectorAll('.mermaid')
+    if (nodes.length === 0) return
+    try {
+      await ensureMermaid()
+      const mermaid = await import('mermaid')
+      await mermaid.default.run({ querySelector: '.mermaid' })
+    } catch (e) {
+      console.error('Mermaid render failed', e)
+    }
+  },
+  { immediate: true },
+)
+
+function getScrollPercent(): number {
+  const el = scrollContainer.value
+  if (!el) return 0
+  const maxScroll = el.scrollHeight - el.clientHeight
+  if (maxScroll <= 0) return 0
+  return el.scrollTop / maxScroll
+}
+
+function onPreviewScroll() {
+  if (isProgrammaticScroll.value) {
+    isProgrammaticScroll.value = false
+    return
+  }
+  emit('scroll-sync', getScrollPercent())
+}
+
+watch(
+  () => props.syncScrollPercent,
+  (percent) => {
+    if (percent == null) return
+    const el = scrollContainer.value
+    if (!el) return
+    const maxScroll = el.scrollHeight - el.clientHeight
+    if (maxScroll <= 0) return
+    isProgrammaticScroll.value = true
+    el.scrollTop = maxScroll * percent
+  },
+)
+
+onMounted(() => {
+  scrollContainer.value?.addEventListener('scroll', onPreviewScroll)
+})
+
+onBeforeUnmount(() => {
+  scrollContainer.value?.removeEventListener('scroll', onPreviewScroll)
+})
+</script>
+
+<template>
+  <div class="markdown-preview">
+    <div class="preview-header">
+      <span class="preview-title">实时预览</span>
+      <span class="preview-subtitle">微信排版效果</span>
+    </div>
+    <div ref="scrollContainer" class="preview-container">
+      <div class="preview-content">
+        <div ref="container" v-html="html" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.markdown-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-secondary);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.preview-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preview-subtitle {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.preview-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 24px 0;
+}
+
+.preview-content {
+  width: 402px;
+  flex-shrink: 0;
+  margin: 0 auto;
+  background: var(--bg-primary);
+  padding: 24px 20px;
+  border-radius: 0;
+  box-shadow: var(--shadow-md);
+  min-height: calc(100% - 48px);
+}
+
+.preview-content :deep(img) {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  margin: 10px auto;
+}
+
+.preview-content :deep(.table-container) {
+  overflow-x: auto;
+}
+
+[data-ui-theme="dark"] .markdown-preview,
+[data-ui-theme="dark"] .preview-container,
+[data-ui-theme="dark"] .preview-content {
+  background: #0f1113;
+}
+
+[data-ui-theme="dark"] .preview-header {
+  background: var(--bg-primary);
+}
+
+[data-ui-theme="dark"] .preview-content {
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .preview-container {
+    padding: 16px;
+  }
+
+  .preview-content {
+    width: 100%;
+    max-width: 402px;
+    padding: 24px 20px;
+  }
+}
+</style>

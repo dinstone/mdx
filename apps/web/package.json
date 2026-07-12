@@ -12,6 +12,7 @@
   "dependencies": {
     "@mdx/core": "workspace:*",
     "@wailsio/runtime": "latest",
+    "mermaid": "^11.12.2",
     "pinia": "^2.3.1",
     "vue": "^3.5.0"
   },
