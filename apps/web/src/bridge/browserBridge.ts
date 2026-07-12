@@ -445,7 +445,7 @@ export class BrowserBridge implements IServiceBridge {
   }
 
   async pickFolder(): Promise<WorkspaceState> {
-    const name = typeof window !== 'undefined' ? window.prompt('Workspace folder name?') || 'demo' : 'demo'
+    const name = typeof window !== 'undefined' ? window.prompt('Workspace folder name?') || 'Temp' : 'Temp'
     return this.openWorkspace(`/${name}`)
   }
 

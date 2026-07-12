@@ -7,6 +7,7 @@ import { useEditorStore } from './stores/editor'
 import AppHeader from './components/AppHeader.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
 import MovePicker from './components/MovePicker.vue'
+import WorkspacePicker from './components/WorkspacePicker.vue'
 import MarkdownEditor from './components/MarkdownEditor.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
@@ -15,6 +16,17 @@ import { themeOptions } from './config/themes'
 const bridge = getBridge()
 const workspace = useWorkspaceStore()
 const editor = useEditorStore()
+
+const showWorkspacePicker = ref(false)
+const workspacePickerList = computed(() => {
+  // In browser mode only browser/temp workspaces are openable.
+  // In desktop mode only real folder paths are openable.
+  const list = workspace.recentWorkspaces.filter((w) => w.isTemp === !bridge.isDesktop)
+  if (!bridge.isDesktop && !list.some((w) => w.path === '/Temp')) {
+    return [{ path: '/Temp', name: 'Temp', isTemp: true }, ...list]
+  }
+  return list
+})
 
 const platformInfo = ref({ os: '', arch: '', version: '' })
 const isDark = ref((() => {
@@ -45,7 +57,7 @@ function toggleDark() {
   isDark.value = !isDark.value
 }
 
-async function openFolder() {
+async function pickDesktopFolder() {
   try {
     const state = await bridge.pickFolder()
     workspace.applyState(state)
@@ -54,14 +66,25 @@ async function openFolder() {
   }
 }
 
-async function selectWorkspace() {
-  if (!bridge.isDesktop) {
-    await workspace.open('/demo')
-  } else {
-    await openFolder()
+function selectWorkspace() {
+  showWorkspacePicker.value = true
+}
+
+async function onSelectWorkspace(path: string) {
+  showWorkspacePicker.value = false
+  if (!path) return
+  if (path === workspace.rootPath) return
+  try {
+    await workspace.open(path)
+  } catch (e) {
+    console.error('Open workspace failed', e)
   }
 }
 
+function onOpenWorkspaceFolder() {
+  showWorkspacePicker.value = false
+  pickDesktopFolder()
+}
 async function createFile(dirPath?: string) {
   const targetDir = dirPath || workspace.rootPath
   if (!targetDir) return
@@ -170,8 +193,8 @@ async function copyWechat() {
 }
 
 function openStorage() {
-  // Browser-only placeholder: open demo workspace
-  workspace.open('/demo').catch(() => {})
+  // Browser-only placeholder: open temp workspace
+  workspace.open('/Temp').catch(() => {})
 }
 
 function openImageHost() {
@@ -296,7 +319,7 @@ const workspaceGridColumns = computed(() => {
                 class="btn-primary"
                 @click="selectWorkspace"
               >
-                {{ bridge.isDesktop ? '打开文件夹' : '打开示例工作区' }}
+                选择工作区
               </button>
             </div>
           </div>
@@ -342,6 +365,15 @@ const workspaceGridColumns = computed(() => {
       :entries="workspace.entries"
       @close="showMovePicker = false"
       @select="confirmMove"
+    />
+    <WorkspacePicker
+      :open="showWorkspacePicker"
+      :current-path="workspace.rootPath"
+      :recent-workspaces="workspacePickerList"
+      :is-desktop="bridge.isDesktop"
+      @close="showWorkspacePicker = false"
+      @select="onSelectWorkspace"
+      @open-folder="onOpenWorkspaceFolder"
     />
   </div>
 </template>

@@ -8,6 +8,15 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getBridge, type WorkspaceState, type FileEntry } from '../bridge'
 
+export interface RecentWorkspace {
+  path: string
+  name: string
+  isTemp: boolean
+}
+
+const RECENT_WORKSPACES_KEY = 'mdx-recent-workspaces'
+const MAX_RECENT_WORKSPACES = 10
+
 export const useWorkspaceStore = defineStore('workspace', () => {
   const bridge = getBridge()
 
@@ -18,6 +27,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const activeFileId = ref('')
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Recently opened workspaces, persisted to localStorage.
+  const recentWorkspaces = ref<RecentWorkspace[]>([])
 
   // ---- getters ----
   const isOpen = computed(() => rootPath.value !== '')
@@ -36,6 +48,37 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return result
   })
 
+  // ---- recent workspaces ----
+  function loadRecentWorkspaces() {
+    try {
+      const raw = localStorage.getItem(RECENT_WORKSPACES_KEY)
+      if (raw) {
+        recentWorkspaces.value = JSON.parse(raw)
+      }
+    } catch {
+      /* non-critical */
+    }
+  }
+
+  function addRecentWorkspace(state: WorkspaceState) {
+    const isTemp = !bridge.isDesktop
+    const name = state.title || state.rootPath.split('/').pop() || state.rootPath
+    const item: RecentWorkspace = { path: state.rootPath, name, isTemp }
+    const existing = recentWorkspaces.value.findIndex((w) => w.path === item.path)
+    if (existing >= 0) {
+      recentWorkspaces.value.splice(existing, 1)
+    }
+    recentWorkspaces.value.unshift(item)
+    if (recentWorkspaces.value.length > MAX_RECENT_WORKSPACES) {
+      recentWorkspaces.value = recentWorkspaces.value.slice(0, MAX_RECENT_WORKSPACES)
+    }
+    try {
+      localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(recentWorkspaces.value))
+    } catch {
+      /* non-critical */
+    }
+  }
+
   // ---- actions ----
   async function open(dirPath: string) {
     loading.value = true
@@ -46,6 +89,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       title.value = state.title
       entries.value = state.entries
       activeFileId.value = state.activeFileId
+      addRecentWorkspace(state)
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to open workspace'
       throw e
@@ -137,9 +181,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     entries.value = state.entries
     activeFileId.value = state.activeFileId
     error.value = null
+    addRecentWorkspace(state)
   }
 
   // Auto-load persisted workspace on startup if available
+  loadRecentWorkspaces()
   bridge.getWorkspaceState().then((state) => {
     if (state.rootPath) applyState(state)
   }).catch(() => {
@@ -154,6 +200,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     activeFileId,
     loading,
     error,
+    recentWorkspaces,
     // getters
     isOpen,
     hasActiveFile,
@@ -172,5 +219,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     deleteFolder,
     renameFolder,
     moveFolder,
+    addRecentWorkspace,
+    loadRecentWorkspaces,
   }
 })
