@@ -14,9 +14,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [path: string]
   refresh: []
-  createFile: []
-  createFolder: []
+  createFile: [dirPath: string]
+  createFolder: [dirPath: string]
   selectWorkspace: []
+  rename: [path: string]
+  delete: [path: string]
+  move: [path: string]
+  copyTitle: [title: string]
 }>()
 
 const filter = ref('')
@@ -87,7 +91,7 @@ function setSort(mode: 'recent' | 'name-asc') {
           class="fs-btn-icon"
           title="新建文件夹"
           :disabled="!workspaceOpen"
-          @click="$emit('createFolder')"
+          @click="$emit('createFolder', rootPath || '')"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -99,7 +103,7 @@ function setSort(mode: 'recent' | 'name-asc') {
           class="fs-btn-icon"
           title="新建文章"
           :disabled="!workspaceOpen"
-          @click="$emit('createFile')"
+          @click="$emit('createFile', rootPath || '')"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -158,6 +162,12 @@ function setSort(mode: 'recent' | 'name-asc') {
         :entries="sortedEntries"
         :active-path="activePath"
         @select="$emit('select', $event)"
+        @create-file="$emit('createFile', $event)"
+        @create-folder="$emit('createFolder', $event)"
+        @rename="$emit('rename', $event)"
+        @delete="$emit('delete', $event)"
+        @move="$emit('move', $event)"
+        @copy-title="$emit('copyTitle', $event)"
       />
     </div>
 

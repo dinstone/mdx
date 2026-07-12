@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { FileEntry } from '../bridge'
 
 const props = defineProps<{
@@ -9,13 +9,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [path: string]
+  createFile: [dirPath: string]
+  createFolder: [dirPath: string]
+  rename: [path: string]
+  delete: [path: string]
+  move: [path: string]
+  copyTitle: [title: string]
 }>()
 
 const expanded = ref<Set<string>>(new Set())
 
 const filteredEntries = computed(() => props.entries)
 
-function toggleFolder(entry: FileEntry) {
+function toggleFolder(entry: FileEntry, e: MouseEvent) {
+  e.stopPropagation()
   if (!entry.children?.length) return
   if (expanded.value.has(entry.path)) {
     expanded.value.delete(entry.path)
@@ -31,6 +38,94 @@ function isExpanded(entry: FileEntry) {
 function onSelect(path: string) {
   emit('select', path)
 }
+
+function onCreateFile(entry: FileEntry, e: MouseEvent) {
+  e.stopPropagation()
+  emit('createFile', entry.path)
+}
+
+function onCreateFolder(entry: FileEntry, e: MouseEvent) {
+  e.stopPropagation()
+  emit('createFolder', entry.path)
+}
+
+// ---- context menu ----
+interface MenuState {
+  visible: boolean
+  x: number
+  y: number
+  entry: FileEntry | null
+}
+
+const menu = ref<MenuState>({
+  visible: false,
+  x: 0,
+  y: 0,
+  entry: null,
+})
+
+function onContextMenu(entry: FileEntry, e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation()
+  menu.value = {
+    visible: true,
+    x: e.clientX,
+    y: e.clientY,
+    entry,
+  }
+}
+
+function closeMenu() {
+  menu.value.visible = false
+  menu.value.entry = null
+}
+
+function handleMenuAction(action: 'copyTitle' | 'rename' | 'move' | 'delete') {
+  const entry = menu.value.entry
+  if (!entry) return
+  closeMenu()
+
+  if (action === 'copyTitle') {
+    const title = entry.name.replace(/\.md$/i, '')
+    emit('copyTitle', title)
+    return
+  }
+
+  if (action === 'rename') {
+    emit('rename', entry.path)
+    return
+  }
+
+  if (action === 'move') {
+    emit('move', entry.path)
+    return
+  }
+
+  if (action === 'delete') {
+    emit('delete', entry.path)
+    return
+  }
+}
+
+function getBaseName(path: string) {
+  return path.split('/').filter(Boolean).pop() || path
+}
+
+// Close context menu on clicks outside
+function onDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement | null
+  if (!target?.closest('.file-tree-context-menu')) {
+    closeMenu()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
@@ -45,14 +140,47 @@ function onSelect(path: string) {
         class="file-item"
         :class="{ active: activePath === entry.path }"
         @click="onSelect(entry.path)"
+        @contextmenu="onContextMenu(entry, $event)"
       >
-        <span class="file-title">{{ entry.name.replace(/\.md$/, '') }}</span>
+        <div class="file-row">
+          <svg
+            class="file-doc-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+          <span class="file-title">{{ entry.name.replace(/\.md$/, '') }}</span>
+          <span class="file-more" @click.stop="onContextMenu(entry, $event)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </span>
+        </div>
+        <div class="file-meta">
+          <span class="file-time">{{ entry.updatedAt || '' }}</span>
+          <span v-if="entry.updatedAt && entry.themeName" class="file-meta-sep">·</span>
+          <span class="file-theme">{{ entry.themeName || '默认主题' }}</span>
+        </div>
       </div>
       <div
         v-else
         class="dir-item"
         :class="{ expanded: isExpanded(entry) }"
-        @click="toggleFolder(entry)"
+        @click="toggleFolder(entry, $event)"
+        @contextmenu="onContextMenu(entry, $event)"
       >
         <svg
           class="folder-chevron"
@@ -81,16 +209,75 @@ function onSelect(path: string) {
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
         <span class="folder-name">{{ entry.name }}</span>
-        <span v-if="entry.children?.length" class="folder-count">{{ entry.children.length }}</span>
+        <span v-if="entry.fileCount !== undefined" class="folder-count">{{ entry.fileCount }}</span>
+        <div class="dir-actions">
+          <button class="dir-action-btn" title="新建文件" @click.stop="onCreateFile(entry, $event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button class="dir-action-btn" title="新建文件夹" @click.stop="onCreateFolder(entry, $event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              <line x1="12" y1="11" x2="12" y2="17" />
+              <line x1="9" y1="14" x2="15" y2="14" />
+            </svg>
+          </button>
+        </div>
       </div>
       <FileTree
         v-if="entry.type === 'dir' && entry.children?.length && isExpanded(entry)"
         :entries="entry.children"
         :active-path="activePath"
         @select="onSelect($event)"
+        @create-file="emit('createFile', $event)"
+        @create-folder="emit('createFolder', $event)"
+        @rename="emit('rename', $event)"
+        @delete="emit('delete', $event)"
+        @move="emit('move', $event)"
+        @copy-title="emit('copyTitle', $event)"
       />
     </li>
   </ul>
+
+  <Teleport to="body">
+    <div
+      v-if="menu.visible"
+      class="file-tree-context-menu"
+      :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
+      @click.stop
+    >
+      <button v-if="menu.entry?.type === 'file'" class="ctx-item" @click="handleMenuAction('copyTitle')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span>复制标题</span>
+      </button>
+      <button class="ctx-item" @click="handleMenuAction('rename')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+        <span>重命名</span>
+      </button>
+      <button class="ctx-item" @click="handleMenuAction('move')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+        <span>移动到...</span>
+      </button>
+      <button class="ctx-item ctx-item--danger" @click="handleMenuAction('delete')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+        <span>删除</span>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -117,9 +304,10 @@ function onSelect(path: string) {
 
 .file-item {
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: stretch;
+  gap: 4px;
   background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+  position: relative;
 }
 
 .file-item:hover {
@@ -133,18 +321,67 @@ function onSelect(path: string) {
   box-shadow: var(--shadow-md);
 }
 
+.file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .file-title {
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+  flex: 1;
+}
+
+.file-doc-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.file-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  padding: 2px;
+  border-radius: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.file-item:hover .file-more {
+  opacity: 1;
+}
+
+.file-more:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.file-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.file-meta-sep {
+  color: var(--text-tertiary);
+}
+
+.file-theme {
+  color: var(--accent-primary);
 }
 
 .dir-item {
   color: var(--text-secondary);
   font-weight: 600;
+  position: relative;
 }
 
 .dir-item:hover {
@@ -179,6 +416,38 @@ function onSelect(path: string) {
   background: var(--bg-tertiary);
   padding: 2px 6px;
   border-radius: var(--radius-pill);
+}
+
+.dir-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.dir-item:hover .dir-actions {
+  opacity: 1;
+}
+
+.dir-action-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 0;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.dir-action-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .dir-row .file-tree {
@@ -220,4 +489,41 @@ function onSelect(path: string) {
 .dir-row .dir-item {
   position: relative;
 }
+
+.file-tree-context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 150px;
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ctx-item--danger {
+  color: #ef4444;
+}
+
 </style>

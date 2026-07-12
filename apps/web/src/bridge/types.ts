@@ -16,6 +16,10 @@ export interface FileEntry {
   path: string
   type: FileType
   children?: FileEntry[]
+  updatedAt?: string
+  themeName?: string
+  themeType?: string
+  fileCount?: number
 }
 
 export interface FrontmatterMeta {

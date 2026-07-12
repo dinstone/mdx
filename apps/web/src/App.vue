@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { getBridge } from './bridge'
+import type { FileEntry } from './bridge'
 import { useWorkspaceStore } from './stores/workspace'
 import { useEditorStore } from './stores/editor'
 import AppHeader from './components/AppHeader.vue'
@@ -60,14 +61,72 @@ async function selectWorkspace() {
   }
 }
 
-function createFile() {
-  if (!workspace.rootPath) return
-  workspace.createFile(workspace.rootPath, `note-${Date.now()}.md`)
+async function createFile(dirPath?: string) {
+  const targetDir = dirPath || workspace.rootPath
+  if (!targetDir) return
+  await workspace.createFile(targetDir, `note-${Date.now()}.md`)
 }
 
-function createFolder() {
-  if (!workspace.rootPath) return
-  workspace.createFolder(workspace.rootPath, `folder-${Date.now()}`)
+async function createFolder(dirPath?: string) {
+  const targetDir = dirPath || workspace.rootPath
+  if (!targetDir) return
+  await workspace.createFolder(targetDir, `folder-${Date.now()}`)
+}
+
+async function renameEntry(path: string) {
+  const entry = findEntry(path, workspace.entries)
+  if (!entry) return
+  const newName = window.prompt('新名称', entry.name)
+  if (!newName || newName === entry.name) return
+  if (entry.type === 'dir') {
+    await workspace.renameFolder(path, newName)
+  } else {
+    await workspace.renameFile(path, newName)
+  }
+}
+
+async function deleteEntry(path: string) {
+  const entry = findEntry(path, workspace.entries)
+  if (!entry) return
+  const confirmed = window.confirm(`确定删除 "${entry.name}" 吗？`)
+  if (!confirmed) return
+  if (entry.type === 'dir') {
+    await workspace.deleteFolder(path)
+  } else {
+    await workspace.deleteFile(path)
+  }
+}
+
+async function moveEntry(path: string) {
+  const entry = findEntry(path, workspace.entries)
+  if (!entry || entry.type === 'dir') return
+  const targetDir = window.prompt('移动到文件夹路径', workspace.rootPath)
+  if (!targetDir) return
+  await workspace.moveFile(path, targetDir)
+}
+
+async function copyTitle(title: string) {
+  try {
+    await navigator.clipboard.writeText(title)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = title
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+}
+
+function findEntry(path: string, entries: FileEntry[]): FileEntry | null {
+  for (const e of entries) {
+    if (e.path === path) return e
+    if (e.children) {
+      const found = findEntry(path, e.children)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 const editorContent = computed({
@@ -135,6 +194,41 @@ function toggleSidebar() {
 }
 
 const isSaved = computed(() => !editor.isModified)
+
+// -- Pane divider drag --
+const editorRatio = ref(0.6) // editor takes 60% by default
+const isDraggingDivider = ref(false)
+
+function onDividerMouseDown(e: MouseEvent) {
+  isDraggingDivider.value = true
+  document.addEventListener('mousemove', onDividerMouseMove)
+  document.addEventListener('mouseup', onDividerMouseUp)
+  e.preventDefault()
+}
+
+function onDividerMouseMove(e: MouseEvent) {
+  if (!isDraggingDivider.value) return
+  const workspaceEl = document.querySelector('.workspace') as HTMLElement | null
+  if (!workspaceEl) return
+  const rect = workspaceEl.getBoundingClientRect()
+  const gap = 6
+  const dividerWidth = 2
+  const availableWidth = rect.width - dividerWidth - gap * 2
+  const mouseX = e.clientX - rect.left - gap
+  editorRatio.value = Math.max(0.2, Math.min(0.8, mouseX / availableWidth))
+}
+
+function onDividerMouseUp() {
+  isDraggingDivider.value = false
+  document.removeEventListener('mousemove', onDividerMouseMove)
+  document.removeEventListener('mouseup', onDividerMouseUp)
+}
+
+const workspaceGridColumns = computed(() => {
+  const ed = editorRatio.value * 100
+  const pv = (1 - editorRatio.value) * 100
+  return `${ed}% 2px ${pv}%`
+})
 </script>
 
 <template>
@@ -166,11 +260,15 @@ const isSaved = computed(() => !editor.isModified)
             @create-file="createFile"
             @create-folder="createFolder"
             @select-workspace="selectWorkspace"
+            @rename="renameEntry"
+            @delete="deleteEntry"
+            @move="moveEntry"
+            @copy-title="copyTitle"
           />
         </div>
       </div>
 
-      <div class="workspace">
+      <div class="workspace" :style="{ gridTemplateColumns: workspaceGridColumns }">
         <div class="editor-pane">
           <div v-if="!workspace.hasActiveFile" class="workspace-placeholder">
             <div class="placeholder-card">
@@ -194,6 +292,13 @@ const isSaved = computed(() => !editor.isModified)
             @save="editor.saveFile()"
             @scroll-sync="onEditorScroll"
           />
+        </div>
+        <div
+          class="pane-divider"
+          :class="{ 'pane-divider--dragging': isDraggingDivider }"
+          @mousedown="onDividerMouseDown"
+        >
+          <span class="pane-divider__handle" />
         </div>
         <div class="preview-pane">
           <div v-if="!workspace.hasActiveFile" class="workspace-placeholder">
@@ -269,10 +374,43 @@ const isSaved = computed(() => !editor.isModified)
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
-  gap: var(--spacing-xl);
+  gap: 6px;
   height: 100%;
   min-height: 0;
+}
+
+.pane-divider {
+  width: 2px;
+  cursor: col-resize;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--border-light);
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0 -2px;
+  padding: 0 2px;
+  z-index: 2;
+}
+
+.pane-divider:hover,
+.pane-divider--dragging {
+  background: var(--accent-color, #4a6cf7);
+}
+
+.pane-divider__handle {
+  display: none;
+  width: 2px;
+  height: 20px;
+  border-radius: 1px;
+  background: #fff;
+  opacity: 0.6;
+}
+
+.pane-divider--dragging .pane-divider__handle {
+  display: block;
 }
 
 .editor-pane,
@@ -293,7 +431,6 @@ const isSaved = computed(() => !editor.isModified)
 
 .editor-pane:hover,
 .preview-pane:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
   border-color: color-mix(in srgb, var(--border-color) 60%, transparent);
 }

@@ -60,11 +60,14 @@ function promisify<T>(req: IDBRequest<T>): Promise<T> {
 
 let _dbCache: IDBDatabase | null = null
 
+/** Tracks empty directories created via createFolder so they still show in the tree. */
+const _emptyDirs = new Set<string>()
+
 // ---------------------------------------------------------------------------
 // Helper — build FileEntries from a flat list of FileRecord paths
 // ---------------------------------------------------------------------------
 
-function buildTree(root: string, records: FileRecord[]): FileEntry[] {
+function buildTree(root: string, records: FileRecord[], emptyDirs?: Set<string>): FileEntry[] {
   const dirMap = new Map<string, FileEntry>()
   const result: FileEntry[] = []
 
@@ -102,11 +105,15 @@ function buildTree(root: string, records: FileRecord[]): FileEntry[] {
       const isFile = i === parts.length - 1 && rec.content !== undefined
       if (isFile) {
         if (!dirMap.has(currentPath)) {
+          const meta = extractFrontmatterMeta(rec.content)
           const entry: FileEntry = {
             id: currentPath,
             name: seg,
             path: currentPath,
             type: 'file',
+            updatedAt: new Date(rec.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            themeName: meta.themeName,
+            themeType: meta.themeType,
           }
           dirMap.set(currentPath, entry)
           const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || root
@@ -124,6 +131,28 @@ function buildTree(root: string, records: FileRecord[]): FileEntry[] {
       }
     }
   }
+
+  // Inject empty directories that exist but have no files
+  if (emptyDirs && emptyDirs.size > 0) {
+    const prefix = root.endsWith('/') ? root : `${root}/`
+    for (const dirPath of emptyDirs) {
+      if (dirPath.startsWith(prefix) && !dirMap.has(dirPath)) {
+        ensureParent(dirPath)
+        // Remove from empty set once it appears in the tree
+      }
+    }
+  }
+
+  // Compute fileCount for each directory (immediate .md children only)
+  const computeFileCount = (entries: FileEntry[]) => {
+    for (const e of entries) {
+      if (e.type === 'dir' && e.children) {
+        e.fileCount = e.children.filter((c) => c.type === 'file').length
+        computeFileCount(e.children)
+      }
+    }
+  }
+  computeFileCount(result)
 
   // Sort: dirs first, then alpha
   const sortEntries = (entries: FileEntry[]) => {
@@ -224,12 +253,24 @@ export class BrowserBridge implements IServiceBridge {
     const store = dbTx('files', 'readonly')
     const existing = await promisify<FileRecord | undefined>(store.get(path))
     if (existing) throw new Error(`File already exists: ${fname}`)
+    // Once a file is added, the parent directory is no longer empty
+    _emptyDirs.delete(dirPath)
     return this.writeFile(path, '').then(() => path)
   }
 
   async deleteFile(absPath: string): Promise<void> {
     await this._ready
     await promisify(dbTx('files', 'readwrite').delete(absPath))
+    // After deleting a file, check if parent dir is now empty — if all files
+    // removed and no sub-dirs, track it as empty
+    const parentDir = absPath.substring(0, absPath.lastIndexOf('/'))
+    const store = dbTx('files', 'readonly')
+    const all = await promisify<FileRecord[]>(store.getAll())
+    const prefix = `${parentDir}/`
+    const siblings = all.filter((r) => r.path.startsWith(prefix) && r.path !== absPath)
+    if (siblings.length === 0) {
+      _emptyDirs.add(parentDir)
+    }
   }
 
   async renameFile(oldPath: string, newName: string): Promise<string> {
@@ -272,14 +313,13 @@ export class BrowserBridge implements IServiceBridge {
     const store = dbTx('files', 'readonly')
     const all = await promisify<FileRecord[]>(store.getAll())
     const prefix = absPath === '/' ? '' : `${absPath}/`
-    return buildTree(absPath, all.filter((r) => r.path.startsWith(prefix)))
+    return buildTree(absPath, all.filter((r) => r.path.startsWith(prefix)), _emptyDirs)
   }
 
   async createFolder(_parentDir: string, _name: string): Promise<string> {
     await this._ready
-    // In browser mode folders are virtual — they exist as soon as a file is
-    // created inside them, so this is a no-op that never fails.
     const path = `${_parentDir}/${_name}`
+    _emptyDirs.add(path)
     return path
   }
 
@@ -293,6 +333,10 @@ export class BrowserBridge implements IServiceBridge {
       .filter((r) => r.path.startsWith(prefix))
       .map((r) => promisify(rw.delete(r.path)))
     await Promise.all(jobs)
+    // Remove self and all sub-dirs from empty set
+    for (const d of _emptyDirs) {
+      if (d === absPath || d.startsWith(prefix)) _emptyDirs.delete(d)
+    }
   }
 
   async renameFolder(oldPath: string, newName: string): Promise<string> {
@@ -312,6 +356,11 @@ export class BrowserBridge implements IServiceBridge {
         )
       })
     await Promise.all(jobs)
+    // Update empty dirs tracking
+    if (_emptyDirs.has(oldPath)) {
+      _emptyDirs.delete(oldPath)
+      _emptyDirs.add(newPath)
+    }
     return newPath
   }
 
@@ -332,6 +381,11 @@ export class BrowserBridge implements IServiceBridge {
         )
       })
     await Promise.all(jobs)
+    // Update empty dirs tracking
+    if (_emptyDirs.has(sourcePath)) {
+      _emptyDirs.delete(sourcePath)
+      _emptyDirs.add(dest)
+    }
     return dest
   }
 

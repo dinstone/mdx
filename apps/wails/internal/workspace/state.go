@@ -15,11 +15,15 @@ const (
 
 // FileEntry represents a file or directory in the workspace tree.
 type FileEntry struct {
-	ID       string       `json:"id"`
-	Name     string       `json:"name"`
-	Path     string       `json:"path"` // relative to workspace root
-	Type     FileType     `json:"type"`
-	Children []*FileEntry `json:"children,omitempty"`
+	ID        string       `json:"id"`
+	Name      string       `json:"name"`
+	Path      string       `json:"path"` // relative to workspace root
+	Type      FileType     `json:"type"`
+	Children  []*FileEntry `json:"children,omitempty"`
+	UpdatedAt string       `json:"updatedAt,omitempty"`
+	ThemeName string       `json:"themeName,omitempty"`
+	ThemeType string       `json:"themeType,omitempty"`
+	FileCount int          `json:"fileCount,omitempty"`
 }
 
 // State holds the current workspace session.

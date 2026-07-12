@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"mdx/internal/util"
 	"mdx/internal/workspace"
 )
 
@@ -15,7 +16,8 @@ import (
 type FolderService struct{}
 
 // ListFolder enumerates the immediate children of a directory as FileEntry
-// items. Only .md files and directories are included.
+// items. Only .md files and directories are included. Markdown files are
+// enriched with frontmatter metadata and modification time.
 func (s *FolderService) ListFolder(absPath string) ([]*workspace.FileEntry, error) {
 	entries, err := os.ReadDir(absPath)
 	if err != nil {
@@ -39,12 +41,28 @@ func (s *FolderService) ListFolder(absPath string) ([]*workspace.FileEntry, erro
 				Type: workspace.Dir,
 			})
 		} else if strings.HasSuffix(strings.ToLower(name), ".md") {
-			result = append(result, &workspace.FileEntry{
+			entry := &workspace.FileEntry{
 				ID:   relPath,
 				Name: name,
 				Path: relPath,
 				Type: workspace.File,
-			})
+			}
+			if info, err := e.Info(); err == nil {
+				entry.UpdatedAt = info.ModTime().Format("15:04")
+			}
+			if data, err := os.ReadFile(relPath); err == nil {
+				meta := util.ExtractFrontmatterMeta(string(data))
+				entry.ThemeName = meta.ThemeName
+				entry.ThemeType = meta.Theme
+			}
+			result = append(result, entry)
+		}
+	}
+
+	// Compute file count for each directory (immediate .md children only)
+	for _, entry := range result {
+		if entry.Type == workspace.Dir {
+			entry.FileCount = countMarkdownFiles(entry.Path)
 		}
 	}
 
@@ -57,6 +75,24 @@ func (s *FolderService) ListFolder(absPath string) ([]*workspace.FileEntry, erro
 	})
 
 	return result, nil
+}
+
+// countMarkdownFiles returns the number of .md files directly inside a directory.
+func countMarkdownFiles(dirPath string) int {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+			count++
+		}
+	}
+	return count
 }
 
 // CreateFolder creates a directory at the given absolute path.

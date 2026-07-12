@@ -23,7 +23,7 @@ func ExtractFrontmatterMeta(content string) FrontmatterMeta {
 	}
 
 	fm := m[1]
-	theme := extractYAMLValue(fm, "theme")
+	theme := extractYAMLValue(fm, "themeType")
 	themeName := extractYAMLValue(fm, "themeName")
 	title := extractYAMLValue(fm, "title")
 

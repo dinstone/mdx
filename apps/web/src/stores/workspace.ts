@@ -100,6 +100,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return newPath
   }
 
+  async function moveFile(sourcePath: string, targetDir: string) {
+    const newPath = await bridge.moveFile(sourcePath, targetDir)
+    if (activeFileId.value === sourcePath) activeFileId.value = newPath
+    await refresh()
+    return newPath
+  }
+
   async function createFolder(parentDir: string, name: string) {
     const path = await bridge.createFolder(parentDir, name)
     await refresh()
@@ -109,6 +116,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function deleteFolder(absPath: string) {
     await bridge.deleteFolder(absPath)
     await refresh()
+  }
+
+  async function renameFolder(oldPath: string, newName: string) {
+    const newPath = await bridge.renameFolder(oldPath, newName)
+    await refresh()
+    return newPath
+  }
+
+  async function moveFolder(sourcePath: string, targetPath: string) {
+    const newPath = await bridge.moveFolder(sourcePath, targetPath)
+    await refresh()
+    return newPath
   }
 
   // Apply a workspace state snapshot (e.g. from a menu-driven open).
@@ -148,7 +167,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     createFile,
     deleteFile,
     renameFile,
+    moveFile,
     createFolder,
     deleteFolder,
+    renameFolder,
+    moveFolder,
   }
 })
