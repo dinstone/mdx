@@ -13,7 +13,7 @@ const emit = defineEmits<{
   createFolder: [dirPath: string]
   rename: [path: string]
   delete: [path: string]
-  move: [path: string]
+  movePicker: [path: string]
   copyTitle: [title: string]
 }>()
 
@@ -97,7 +97,7 @@ function handleMenuAction(action: 'copyTitle' | 'rename' | 'move' | 'delete') {
   }
 
   if (action === 'move') {
-    emit('move', entry.path)
+    emit('movePicker', entry.path)
     return
   }
 
@@ -235,7 +235,7 @@ onUnmounted(() => {
         @create-folder="emit('createFolder', $event)"
         @rename="emit('rename', $event)"
         @delete="emit('delete', $event)"
-        @move="emit('move', $event)"
+        @move-picker="emit('movePicker', $event)"
         @copy-title="emit('copyTitle', $event)"
       />
     </li>

@@ -19,7 +19,7 @@ const emit = defineEmits<{
   selectWorkspace: []
   rename: [path: string]
   delete: [path: string]
-  move: [path: string]
+  movePicker: [path: string]
   copyTitle: [title: string]
 }>()
 
@@ -166,7 +166,7 @@ function setSort(mode: 'recent' | 'name-asc') {
         @create-folder="$emit('createFolder', $event)"
         @rename="$emit('rename', $event)"
         @delete="$emit('delete', $event)"
-        @move="$emit('move', $event)"
+        @move-picker="$emit('movePicker', $event)"
         @copy-title="$emit('copyTitle', $event)"
       />
     </div>

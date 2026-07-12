@@ -6,6 +6,7 @@ import { useWorkspaceStore } from './stores/workspace'
 import { useEditorStore } from './stores/editor'
 import AppHeader from './components/AppHeader.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
+import MovePicker from './components/MovePicker.vue'
 import MarkdownEditor from './components/MarkdownEditor.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
@@ -76,12 +77,14 @@ async function createFolder(dirPath?: string) {
 async function renameEntry(path: string) {
   const entry = findEntry(path, workspace.entries)
   if (!entry) return
-  const newName = window.prompt('新名称', entry.name)
-  if (!newName || newName === entry.name) return
-  if (entry.type === 'dir') {
-    await workspace.renameFolder(path, newName)
+  const isFile = entry.type !== 'dir'
+  const displayName = isFile ? entry.name.replace(/\.md$/i, '') : entry.name
+  const newName = window.prompt('新名称', displayName)
+  if (!newName || newName === displayName) return
+  if (isFile) {
+    await workspace.renameFile(path, `${newName.replace(/\.md$/i, '')}.md`)
   } else {
-    await workspace.renameFile(path, newName)
+    await workspace.renameFolder(path, newName)
   }
 }
 
@@ -97,12 +100,26 @@ async function deleteEntry(path: string) {
   }
 }
 
-async function moveEntry(path: string) {
-  const entry = findEntry(path, workspace.entries)
-  if (!entry || entry.type === 'dir') return
-  const targetDir = window.prompt('移动到文件夹路径', workspace.rootPath)
-  if (!targetDir) return
-  await workspace.moveFile(path, targetDir)
+const showMovePicker = ref(false)
+const moveSourcePath = ref('')
+
+function onMovePicker(path: string) {
+  moveSourcePath.value = path
+  showMovePicker.value = true
+}
+
+async function confirmMove(targetDir: string) {
+  showMovePicker.value = false
+  const sourcePath = moveSourcePath.value
+  moveSourcePath.value = ''
+  if (!sourcePath || !targetDir) return
+  const entry = findEntry(sourcePath, workspace.entries)
+  if (!entry) return
+  if (entry.type === 'dir') {
+    await workspace.moveFolder(sourcePath, targetDir)
+  } else {
+    await workspace.moveFile(sourcePath, targetDir)
+  }
 }
 
 async function copyTitle(title: string) {
@@ -262,7 +279,7 @@ const workspaceGridColumns = computed(() => {
             @select-workspace="selectWorkspace"
             @rename="renameEntry"
             @delete="deleteEntry"
-            @move="moveEntry"
+            @move-picker="onMovePicker"
             @copy-title="copyTitle"
           />
         </div>
@@ -317,6 +334,14 @@ const workspaceGridColumns = computed(() => {
       :current="editor.currentThemeName"
       @select="selectTheme"
       @close="closeTheme"
+    />
+    <MovePicker
+      v-if="showMovePicker"
+      :source-path="moveSourcePath"
+      :root-path="workspace.rootPath"
+      :entries="workspace.entries"
+      @close="showMovePicker = false"
+      @select="confirmMove"
     />
   </div>
 </template>
