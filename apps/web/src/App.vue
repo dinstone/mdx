@@ -11,6 +11,7 @@ import MovePicker from './components/MovePicker.vue'
 import WorkspacePicker from './components/WorkspacePicker.vue'
 import MarkdownEditor from './components/MarkdownEditor.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
+import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
 
@@ -95,16 +96,6 @@ async function createFolder(dirPath?: string) {
   await workspace.createFolder(targetDir, `folder-${Date.now()}`)
 }
 
-async function renameEntry(payload: { path: string; newName: string }) {
-  const entry = findEntry(payload.path, workspace.entries)
-  if (!entry) return
-  if (entry.type === 'file') {
-    await workspace.renameFile(payload.path, `${payload.newName.replace(/\.md$/i, '')}.md`)
-  } else {
-    await workspace.renameFolder(payload.path, payload.newName)
-  }
-}
-
 async function deleteEntry(path: string) {
   const entry = findEntry(path, workspace.entries)
   if (!entry) return
@@ -117,6 +108,34 @@ async function deleteEntry(path: string) {
 
 const showMovePicker = ref(false)
 const moveSourcePath = ref('')
+
+const showRenameDialog = ref(false)
+const renamePath = ref('')
+const renameName = ref('')
+const renameIsFile = ref(false)
+
+function onRenamePicker(path: string) {
+  const entry = findEntry(path, workspace.entries)
+  if (!entry) return
+  renamePath.value = path
+  renameName.value = entry.type === 'file' ? entry.name.replace(/\.md$/i, '') : entry.name
+  renameIsFile.value = entry.type === 'file'
+  showRenameDialog.value = true
+}
+
+async function confirmRename(newName: string) {
+  showRenameDialog.value = false
+  const path = renamePath.value
+  const isFile = renameIsFile.value
+  renamePath.value = ''
+  renameName.value = ''
+  if (!path || !newName) return
+  if (isFile) {
+    await workspace.renameFile(path, `${newName.replace(/\.md$/i, '')}.md`)
+  } else {
+    await workspace.renameFolder(path, newName)
+  }
+}
 
 function onMovePicker(path: string) {
   moveSourcePath.value = path
@@ -291,7 +310,7 @@ const workspaceGridColumns = computed(() => {
             @create-file="createFile"
             @create-folder="createFolder"
             @select-workspace="selectWorkspace"
-            @rename-entry="renameEntry"
+            @rename="onRenamePicker"
             @delete="deleteEntry"
             @move-picker="onMovePicker"
             @copy-title="copyTitle"
@@ -366,6 +385,13 @@ const workspaceGridColumns = computed(() => {
       @close="showWorkspacePicker = false"
       @select="onSelectWorkspace"
       @open-folder="onOpenWorkspaceFolder"
+    />
+    <RenameDialog
+      :open="showRenameDialog"
+      :name="renameName"
+      :is-file="renameIsFile"
+      @close="showRenameDialog = false"
+      @confirm="confirmRename"
     />
   </div>
 </template>
