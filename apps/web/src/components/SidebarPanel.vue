@@ -273,7 +273,10 @@ function setSort(mode: 'recent' | 'name-asc') {
 }
 
 .fs-search {
-  padding: 12px 24px 4px;
+  height: 50px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-light);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 8px;
