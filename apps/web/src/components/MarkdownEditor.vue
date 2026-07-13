@@ -119,9 +119,9 @@ onMounted(() => {
           emit('update:modelValue', update.state.doc.toString())
         }
       }),
-      // Theme via CSS variables — automatically follows data-ui-theme
       EditorView.theme({
         '&': { height: '100%' },
+        '&.cm-focused': { outline: 'none' },
         '.cm-scroller': {
           fontFamily: 'var(--font-mono)',
           fontSize: '14px',
@@ -140,17 +140,16 @@ onMounted(() => {
           background: 'transparent',
         },
         '.cm-activeLine': {
-          background: 'color-mix(in srgb, var(--bg-hover) 50%, transparent)',
+          background: '#e6f5eb',
         },
         '.cm-cursor': {
           borderLeftColor: 'var(--text-primary)',
         },
         '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-          background:
-            'color-mix(in srgb, var(--accent-primary) 25%, transparent) !important',
+          backgroundColor: '#b3e5cc !important',
         },
         '.cm-selectionMatch': {
-          background: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+          backgroundColor: '#d4f0e0',
         },
       }),
     ],
@@ -275,13 +274,11 @@ onMounted(() => {
 
 .editor-body-wrapper {
   flex: 1;
-  overflow: hidden;
   min-height: 0;
 }
 
 .cm-container {
   height: 100%;
-  overflow: hidden;
 }
 
 /* CodeMirror overrides via deep selectors — these target elements inside .cm-container
