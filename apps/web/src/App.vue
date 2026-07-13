@@ -227,6 +227,39 @@ const showThemePanel = ref(false)
 const showSidebar = ref(true)
 const themeSelectorOptions = themeOptions.map((t) => ({ name: t.name, value: t.name }))
 
+// -- Sidebar width drag --
+const sidebarWidth = ref(280)
+const isDraggingSidebar = ref(false)
+
+function onSidebarDividerMouseDown(e: MouseEvent) {
+  isDraggingSidebar.value = true
+  document.addEventListener('mousemove', onSidebarDividerMouseMove)
+  document.addEventListener('mouseup', onSidebarDividerMouseUp)
+  e.preventDefault()
+}
+
+function onSidebarDividerMouseMove(e: MouseEvent) {
+  if (!isDraggingSidebar.value) return
+  const appMain = document.querySelector('.app-main') as HTMLElement | null
+  if (!appMain) return
+  const rect = appMain.getBoundingClientRect()
+  const mouseX = e.clientX - rect.left
+  sidebarWidth.value = Math.max(200, Math.min(500, mouseX))
+}
+
+function onSidebarDividerMouseUp() {
+  isDraggingSidebar.value = false
+  document.removeEventListener('mousemove', onSidebarDividerMouseMove)
+  document.removeEventListener('mouseup', onSidebarDividerMouseUp)
+}
+
+const mainGridColumns = computed(() => {
+  if (showSidebar.value) {
+    return `${sidebarWidth.value}px 6px minmax(0, 1fr)`
+  }
+  return `minmax(0, 1fr)`
+})
+
 // scroll sync state
 const editorScrollPercent = ref<number | null>(null)
 const previewScrollPercent = ref<number | null>(null)
@@ -296,7 +329,7 @@ const workspaceGridColumns = computed(() => {
       @copy-wechat="copyWechat"
     />
 
-    <main class="app-main" :class="{ 'sidebar-hidden': !showSidebar }">
+    <main class="app-main" :style="{ gridTemplateColumns: mainGridColumns }">
       <div v-show="showSidebar" class="history-pane">
         <div class="history-pane__content">
           <SidebarPanel
@@ -318,6 +351,12 @@ const workspaceGridColumns = computed(() => {
           />
         </div>
       </div>
+      <div
+        v-show="showSidebar"
+        class="sidebar-divider"
+        :class="{ 'sidebar-divider--dragging': isDraggingSidebar }"
+        @mousedown="onSidebarDividerMouseDown"
+      />
 
       <div class="workspace" :style="{ gridTemplateColumns: workspaceGridColumns }">
         <div class="editor-pane">
@@ -409,17 +448,13 @@ const workspaceGridColumns = computed(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: var(--spacing-xl);
+  grid-template-columns: 280px 6px minmax(0, 1fr);
+  gap: 0;
   padding: var(--spacing-xl) var(--spacing-xxl);
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
-}
-
-.app-main.sidebar-hidden {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .history-pane {
@@ -445,6 +480,36 @@ const workspaceGridColumns = computed(() => {
     transform 0.35s ease,
     box-shadow 0.35s ease,
     border-color 0.35s ease;
+}
+
+.sidebar-divider {
+  width: 6px;
+  cursor: col-resize;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  transition: background 0.2s ease;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.sidebar-divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--border-light);
+  transform: translateX(-50%);
+}
+
+.sidebar-divider:hover::after,
+.sidebar-divider--dragging::after {
+  background: var(--accent-color, #4a6cf7);
+  opacity: 0.8;
 }
 
 .workspace {
@@ -571,7 +636,7 @@ const workspaceGridColumns = computed(() => {
 
 @media (max-width: 1280px) {
   .app-main {
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px 6px minmax(0, 1fr);
   }
 }
 
@@ -592,13 +657,17 @@ const workspaceGridColumns = computed(() => {
   }
 
   .app-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 1fr;
     padding: 8px;
     gap: 8px;
   }
 
   .history-pane {
+    display: none;
+  }
+
+  .sidebar-divider {
     display: none;
   }
 

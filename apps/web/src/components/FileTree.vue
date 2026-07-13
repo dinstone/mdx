@@ -165,7 +165,7 @@ onUnmounted(() => {
             <line x1="16" y1="17" x2="8" y2="17" />
             <polyline points="10 9 9 9 8 9" />
           </svg>
-          <span class="file-title">{{ entry.name.replace(/\.md$/, '') }}</span>
+          <span class="file-title" :title="entry.name.replace(/\.md$/, '')">{{ entry.name.replace(/\.md$/, '') }}</span>
           <span class="file-more" @click.stop="onContextMenu(entry, $event)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="5" r="1" />
@@ -213,7 +213,7 @@ onUnmounted(() => {
         >
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
-        <span class="folder-name">{{ entry.name }}</span>
+        <span class="folder-name" :title="entry.name">{{ entry.name }}</span>
         <span v-if="entry.fileCount !== undefined" class="folder-count">{{ entry.fileCount }}</span>
         <div class="dir-actions">
           <button class="dir-action-btn" title="新建文件" @click.stop="onCreateFile(entry, $event)">
@@ -322,9 +322,24 @@ onUnmounted(() => {
 }
 
 .file-item.active {
-  background: var(--bg-primary);
-  border: var(--border-width) solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
-  box-shadow: var(--shadow-md);
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-primary));
+  border: 1px solid var(--accent-primary);
+  border-left: 3px solid var(--accent-primary);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-primary) 30%, transparent),
+    0 4px 12px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.file-item.active .file-title {
+  color: var(--accent-primary);
+}
+
+.file-item.active .file-doc-icon {
+  color: var(--accent-primary);
+}
+
+.file-item.active .file-meta {
+  color: var(--text-secondary);
 }
 
 .file-row {
