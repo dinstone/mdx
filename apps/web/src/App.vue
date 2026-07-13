@@ -279,7 +279,7 @@ function toggleSidebar() {
 const isSaved = computed(() => !editor.isModified)
 
 // -- Pane divider drag --
-const editorRatio = ref(0.6) // editor takes 60% by default
+const editorRatio = ref(0.55) // editor takes 55% by default
 const isDraggingDivider = ref(false)
 
 function onDividerMouseDown(e: MouseEvent) {
@@ -298,7 +298,7 @@ function onDividerMouseMove(e: MouseEvent) {
   const dividerWidth = 6
   const availableWidth = rect.width - dividerWidth - gap * 2
   const mouseX = e.clientX - rect.left - gap
-  editorRatio.value = Math.max(0.2, Math.min(0.8, mouseX / availableWidth))
+  editorRatio.value = Math.max(0.4, Math.min(0.6, mouseX / availableWidth))
 }
 
 function onDividerMouseUp() {
