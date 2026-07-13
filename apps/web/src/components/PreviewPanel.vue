@@ -138,7 +138,6 @@ onBeforeUnmount(() => {
 }
 
 .preview-content {
-  width: 402px;
   flex-shrink: 0;
   margin: 0 auto;
   background: var(--bg-primary);
@@ -159,13 +158,8 @@ onBeforeUnmount(() => {
   overflow-x: auto;
 }
 
-[data-ui-theme="dark"] .markdown-preview,
-[data-ui-theme="dark"] .preview-container,
-[data-ui-theme="dark"] .preview-content {
-  background: #0f1113;
-}
-
-[data-ui-theme="dark"] .preview-header {
+[data-ui-theme="dark"] .preview-header,
+[data-ui-theme="dark"] .preview-container {
   background: var(--bg-primary);
 }
 
@@ -180,7 +174,7 @@ onBeforeUnmount(() => {
 
   .preview-content {
     width: 100%;
-    max-width: 402px;
+    
     padding: 24px 20px;
   }
 }
