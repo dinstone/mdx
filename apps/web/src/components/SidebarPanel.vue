@@ -208,7 +208,9 @@ function setSort(mode: 'recent' | 'name-asc') {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 16px;
+  height: 56px;
+  box-sizing: border-box;
+  padding: 0 24px;
   border-bottom: var(--border-width) solid var(--border-light);
 }
 
@@ -382,7 +384,9 @@ function setSort(mode: 'recent' | 'name-asc') {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  height: 45px;
+  box-sizing: border-box;
+  padding: 0 24px;
   border-top: var(--border-width) solid var(--border-light);
   color: var(--text-tertiary);
   font-size: 12px;

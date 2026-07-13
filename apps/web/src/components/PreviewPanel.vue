@@ -104,7 +104,9 @@ onBeforeUnmount(() => {
 }
 
 .preview-header {
-  padding: 16px 24px;
+  height: 56px;
+  box-sizing: border-box;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border-light);
   background: var(--bg-primary);
   display: flex;

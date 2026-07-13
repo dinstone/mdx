@@ -157,7 +157,9 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 .editor-header {
-  padding: 16px 24px;
+  height: 56px;
+  box-sizing: border-box;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border-light);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
@@ -226,7 +228,9 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 .editor-footer {
-  padding: 8px 24px;
+  height: 45px;
+  box-sizing: border-box;
+  padding: 0 24px;
   border-top: 1px solid var(--border-light);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);

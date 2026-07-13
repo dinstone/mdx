@@ -294,8 +294,8 @@ function onDividerMouseMove(e: MouseEvent) {
   const workspaceEl = document.querySelector('.workspace') as HTMLElement | null
   if (!workspaceEl) return
   const rect = workspaceEl.getBoundingClientRect()
-  const gap = 6
-  const dividerWidth = 2
+  const gap = 0
+  const dividerWidth = 6
   const availableWidth = rect.width - dividerWidth - gap * 2
   const mouseX = e.clientX - rect.left - gap
   editorRatio.value = Math.max(0.2, Math.min(0.8, mouseX / availableWidth))
@@ -310,7 +310,7 @@ function onDividerMouseUp() {
 const workspaceGridColumns = computed(() => {
   const ed = editorRatio.value * 100
   const pv = (1 - editorRatio.value) * 100
-  return `${ed}% 2px ${pv}%`
+  return `${ed}% 6px ${pv}%`
 })
 </script>
 
@@ -387,9 +387,7 @@ const workspaceGridColumns = computed(() => {
           class="pane-divider"
           :class="{ 'pane-divider--dragging': isDraggingDivider }"
           @mousedown="onDividerMouseDown"
-        >
-          <span class="pane-divider__handle" />
-        </div>
+        />
         <div class="preview-pane">
           <div v-if="!workspace.hasActiveFile" class="workspace-placeholder">
             <div class="placeholder-card">
@@ -450,7 +448,7 @@ const workspaceGridColumns = computed(() => {
   display: grid;
   grid-template-columns: 280px 6px minmax(0, 1fr);
   gap: 0;
-  padding: var(--spacing-xl) var(--spacing-xxl);
+  padding: 10px;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -463,7 +461,11 @@ const workspaceGridColumns = computed(() => {
   height: 100%;
   min-height: 0;
   border-radius: 0;
-  background: transparent;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--border-width) solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .history-pane__content {
@@ -471,15 +473,8 @@ const workspaceGridColumns = computed(() => {
   min-height: 0;
   border-radius: 0;
   overflow: hidden;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: var(--border-width) solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  transition:
-    transform 0.35s ease,
-    box-shadow 0.35s ease,
-    border-color 0.35s ease;
+  background: transparent;
+  border: none;
 }
 
 .sidebar-divider {
@@ -500,7 +495,7 @@ const workspaceGridColumns = computed(() => {
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 1px;
   border-radius: 1px;
   background: var(--border-light);
   transform: translateX(-50%);
@@ -514,43 +509,39 @@ const workspaceGridColumns = computed(() => {
 
 .workspace {
   display: grid;
-  gap: 6px;
+  gap: 0;
   height: 100%;
   min-height: 0;
 }
 
 .pane-divider {
-  width: 2px;
+  width: 6px;
   cursor: col-resize;
   height: 100%;
+  border-radius: 0;
+  background: transparent;
+  transition: background 0.2s ease;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.pane-divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
   border-radius: 1px;
   background: var(--border-light);
-  transition: background 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin: 0 -2px;
-  padding: 0 2px;
-  z-index: 2;
+  transform: translateX(-50%);
 }
 
-.pane-divider:hover,
-.pane-divider--dragging {
+.pane-divider:hover::after,
+.pane-divider--dragging::after {
   background: var(--accent-color, #4a6cf7);
-}
-
-.pane-divider__handle {
-  display: none;
-  width: 2px;
-  height: 20px;
-  border-radius: 1px;
-  background: #fff;
-  opacity: 0.6;
-}
-
-.pane-divider--dragging .pane-divider__handle {
-  display: block;
+  opacity: 0.8;
 }
 
 .editor-pane,
@@ -566,13 +557,6 @@ const workspaceGridColumns = computed(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.editor-pane:hover,
-.preview-pane:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: color-mix(in srgb, var(--border-color) 60%, transparent);
 }
 
 .workspace-placeholder {
@@ -630,19 +614,20 @@ const workspaceGridColumns = computed(() => {
 
 @media (max-width: 1440px) {
   .app-main {
-    padding: 20px 24px 32px;
+    padding: 10px;
   }
 }
 
 @media (max-width: 1280px) {
   .app-main {
     grid-template-columns: 240px 6px minmax(0, 1fr);
+    gap: 0;
   }
 }
 
 @media (max-width: 960px) {
   .app-main {
-    padding: 16px;
+    padding: 10px;
   }
 
   .workspace {
@@ -659,7 +644,7 @@ const workspaceGridColumns = computed(() => {
   .app-main {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 1fr;
-    padding: 8px;
+    padding: 10px;
     gap: 8px;
   }
 
@@ -680,11 +665,6 @@ const workspaceGridColumns = computed(() => {
   .editor-pane,
   .preview-pane {
     border-radius: 0;
-  }
-
-  .editor-pane:hover,
-  .preview-pane:hover {
-    transform: none;
   }
 }
 </style>
