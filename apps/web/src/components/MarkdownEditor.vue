@@ -4,6 +4,8 @@ import { minimalSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 
 const props = defineProps<{
@@ -107,12 +109,17 @@ onMounted(() => {
     },
   ])
 
+  const headingHighlight = HighlightStyle.define([
+    { tag: tags.heading, textDecoration: 'none', fontWeight: 'bold' },
+  ])
+
   const state = EditorState.create({
     doc: props.modelValue,
     extensions: [
       minimalSetup,
       saveKeymap,
       markdown(),
+      syntaxHighlighting(headingHighlight),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
