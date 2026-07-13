@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { minimalSetup } from 'codemirror'
+import { EditorState } from '@codemirror/state'
+import { EditorView, keymap } from '@codemirror/view'
+import { markdown } from '@codemirror/lang-markdown'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 
 const props = defineProps<{
@@ -15,58 +19,70 @@ const emit = defineEmits<{
   'scroll-sync': [percent: number]
 }>()
 
-const textareaRef = ref<HTMLTextAreaElement>()
+const editorContainer = ref<HTMLDivElement>()
+const viewRef = ref<EditorView | null>(null)
 const isProgrammaticScroll = ref(false)
 
 function getScrollPercent(): number {
-  const el = textareaRef.value
-  if (!el) return 0
-  const maxScroll = el.scrollHeight - el.clientHeight
-  if (maxScroll <= 0) return 0
-  return el.scrollTop / maxScroll
+  const view = viewRef.value
+  if (!view) return 0
+  const s = view.scrollDOM
+  const max = s.scrollHeight - s.clientHeight
+  return max <= 0 ? 0 : s.scrollTop / max
 }
 
-function onEditorScroll() {
-  if (isProgrammaticScroll.value) {
-    isProgrammaticScroll.value = false
-    return
-  }
-  emit('scroll-sync', getScrollPercent())
+// Toolbar insert — operates on CodeMirror's selection
+function insertSnippet(before: string, after = '', placeholder = '') {
+  const view = viewRef.value
+  if (!view) return
+  const { from, to } = view.state.selection.main
+  const selected = view.state.doc.sliceString(from, to)
+  const text = selected || placeholder
+  const full = before + text + after
+  view.dispatch({
+    changes: { from, to, insert: full },
+    selection: {
+      anchor: from + before.length,
+      head: from + before.length + text.length,
+    },
+  })
+  view.focus()
 }
 
+// Sync external modelValue → CodeMirror (skip when CM already has the same content)
 watch(
-  () => props.syncScrollPercent,
-  (percent) => {
-    if (percent == null) return
-    const el = textareaRef.value
-    if (!el) return
-    const maxScroll = el.scrollHeight - el.clientHeight
-    if (maxScroll <= 0) return
-    isProgrammaticScroll.value = true
-    el.scrollTop = maxScroll * percent
+  () => props.modelValue,
+  (val) => {
+    const view = viewRef.value
+    if (!view) return
+    if (view.state.doc.toString() === val) return
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: val },
+    })
   },
 )
 
-onMounted(() => {
-  textareaRef.value?.addEventListener('scroll', onEditorScroll)
-})
-
-onBeforeUnmount(() => {
-  textareaRef.value?.removeEventListener('scroll', onEditorScroll)
-})
-
-const content = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v),
-})
+// Sync scroll position from preview
+watch(
+  () => props.syncScrollPercent,
+  (percent) => {
+    const view = viewRef.value
+    if (!view || percent == null) return
+    const s = view.scrollDOM
+    const max = s.scrollHeight - s.clientHeight
+    if (max <= 0) return
+    isProgrammaticScroll.value = true
+    s.scrollTo({ top: max * percent })
+  },
+)
 
 const lineCount = computed(() => {
-  if (!content.value) return 0
-  return content.value.split('\n').length
+  if (!props.modelValue) return 0
+  return props.modelValue.split('\n').length
 })
 
 const wordCount = computed(() => {
-  const text = content.value.trim()
+  const text = props.modelValue.trim()
   if (!text) return 0
   const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length
   const en = (text.match(/[a-zA-Z0-9_]+/g) || []).length
@@ -78,28 +94,91 @@ const saveStatusText = computed(() => {
   return props.saved ? '已保存' : '未保存'
 })
 
-function insertSnippet(before: string, after: string = '', placeholder = '') {
-  const el = textareaRef.value
-  if (!el) return
-  const start = el.selectionStart ?? 0
-  const end = el.selectionEnd ?? 0
-  const selected = content.value.slice(start, end) || placeholder
-  const replacement = `${before}${selected}${after}`
-  const newContent = content.value.slice(0, start) + replacement + content.value.slice(end)
-  emit('update:modelValue', newContent)
-  requestAnimationFrame(() => {
-    el.focus()
-    const caret = start + before.length
-    el.setSelectionRange(caret, caret + selected.length)
-  })
-}
+onMounted(() => {
+  if (!editorContainer.value) return
 
-function onKeydown(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-    e.preventDefault()
-    emit('save')
+  const saveKeymap = keymap.of([
+    {
+      key: 'Mod-s',
+      run: () => {
+        emit('save')
+        return true
+      },
+    },
+  ])
+
+  const state = EditorState.create({
+    doc: props.modelValue,
+    extensions: [
+      minimalSetup,
+      saveKeymap,
+      markdown(),
+      EditorView.lineWrapping,
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          emit('update:modelValue', update.state.doc.toString())
+        }
+      }),
+      // Theme via CSS variables — automatically follows data-ui-theme
+      EditorView.theme({
+        '&': { height: '100%' },
+        '.cm-scroller': {
+          fontFamily: 'var(--font-mono)',
+          fontSize: '14px',
+          lineHeight: '1.75',
+        },
+        '.cm-content': {
+          padding: '2px 20px',
+        },
+        '.cm-gutters': {
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--text-tertiary)',
+          paddingRight: '8px',
+        },
+        '.cm-activeLineGutter': {
+          background: 'transparent',
+        },
+        '.cm-activeLine': {
+          background: 'color-mix(in srgb, var(--bg-hover) 50%, transparent)',
+        },
+        '.cm-cursor': {
+          borderLeftColor: 'var(--text-primary)',
+        },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+          background:
+            'color-mix(in srgb, var(--accent-primary) 25%, transparent) !important',
+        },
+        '.cm-selectionMatch': {
+          background: 'color-mix(in srgb, var(--accent-primary) 15%, transparent)',
+        },
+      }),
+    ],
+  })
+
+  const view = new EditorView({
+    state,
+    parent: editorContainer.value,
+  })
+
+  // Scroll sync
+  const handleScroll = () => {
+    if (isProgrammaticScroll.value) {
+      isProgrammaticScroll.value = false
+      return
+    }
+    emit('scroll-sync', getScrollPercent())
   }
-}
+  view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true })
+
+  viewRef.value = view
+
+  onBeforeUnmount(() => {
+    view.scrollDOM.removeEventListener('scroll', handleScroll)
+    view.destroy()
+    viewRef.value = null
+  })
+})
 </script>
 
 <template>
@@ -126,12 +205,7 @@ function onKeydown(e: KeyboardEvent) {
     />
 
     <div class="editor-body-wrapper">
-      <textarea
-        ref="textareaRef"
-        v-model="content"
-        placeholder="开始编写 Markdown..."
-        @keydown="onKeydown"
-      />
+      <div ref="editorContainer" class="cm-container" />
     </div>
 
     <div class="editor-footer">
@@ -181,7 +255,7 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 .editor-title::before {
-  content: "";
+  content: '';
   display: block;
   width: 6px;
   height: 6px;
@@ -202,29 +276,35 @@ function onKeydown(e: KeyboardEvent) {
 .editor-body-wrapper {
   flex: 1;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
 }
 
-.editor-body-wrapper textarea {
-  width: 100%;
+.cm-container {
   height: 100%;
-  border: none;
-  resize: none;
-  padding: 24px 32px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 1.75;
-  outline: none;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  -webkit-text-fill-color: var(--text-primary);
-  caret-color: var(--text-primary);
+  overflow: hidden;
 }
 
-.editor-body-wrapper textarea::placeholder {
+/* CodeMirror overrides via deep selectors — these target elements inside .cm-container
+   that are rendered by CodeMirror and are not scoped by Vue's scoped styles */
+.cm-container :deep(.cm-editor) {
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.cm-container :deep(.cm-editor .cm-scroller) {
+  overflow: auto;
+}
+
+.cm-container :deep(.cm-editor .cm-content) {
+  color: var(--text-primary);
+}
+
+.cm-container :deep(.cm-editor .cm-placeholder) {
   color: var(--text-tertiary);
+}
+
+.cm-container :deep(.cm-editor .cm-gutter) {
+  background: transparent;
 }
 
 .editor-footer {

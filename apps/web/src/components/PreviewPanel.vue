@@ -134,17 +134,17 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
-  padding: 24px 0;
+  padding: 2px 0;
 }
 
 .preview-content {
   flex-shrink: 0;
   margin: 0 auto;
   background: var(--bg-primary);
-  padding: 24px 20px;
+  padding: 2px 20px;
   border-radius: 0;
   box-shadow: var(--shadow-md);
-  min-height: calc(100% - 48px);
+  min-height: 100%
 }
 
 .preview-content :deep(img) {

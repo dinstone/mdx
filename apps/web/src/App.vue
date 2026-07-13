@@ -231,15 +231,19 @@ const themeSelectorOptions = themeOptions.map((t) => ({ name: t.name, value: t.n
 const sidebarWidth = ref(280)
 const isDraggingSidebar = ref(false)
 
+let sidebarDragStartX = 0
 function onSidebarDividerMouseDown(e: MouseEvent) {
-  isDraggingSidebar.value = true
+  sidebarDragStartX = e.clientX
   document.addEventListener('mousemove', onSidebarDividerMouseMove)
   document.addEventListener('mouseup', onSidebarDividerMouseUp)
-  e.preventDefault()
 }
 
 function onSidebarDividerMouseMove(e: MouseEvent) {
-  if (!isDraggingSidebar.value) return
+  if (!isDraggingSidebar.value && Math.abs(e.clientX - sidebarDragStartX) < 3) return
+  if (!isDraggingSidebar.value) {
+    isDraggingSidebar.value = true
+    e.preventDefault()
+  }
   const appMain = document.querySelector('.app-main') as HTMLElement | null
   if (!appMain) return
   const rect = appMain.getBoundingClientRect()
@@ -282,15 +286,19 @@ const isSaved = computed(() => !editor.isModified)
 const editorRatio = ref(0.55) // editor takes 55% by default
 const isDraggingDivider = ref(false)
 
+let dividerDragStartX = 0
 function onDividerMouseDown(e: MouseEvent) {
-  isDraggingDivider.value = true
+  dividerDragStartX = e.clientX
   document.addEventListener('mousemove', onDividerMouseMove)
   document.addEventListener('mouseup', onDividerMouseUp)
-  e.preventDefault()
 }
 
 function onDividerMouseMove(e: MouseEvent) {
-  if (!isDraggingDivider.value) return
+  if (!isDraggingDivider.value && Math.abs(e.clientX - dividerDragStartX) < 3) return
+  if (!isDraggingDivider.value) {
+    isDraggingDivider.value = true
+    e.preventDefault()
+  }
   const workspaceEl = document.querySelector('.workspace') as HTMLElement | null
   if (!workspaceEl) return
   const rect = workspaceEl.getBoundingClientRect()
@@ -549,9 +557,7 @@ const workspaceGridColumns = computed(() => {
   height: 100%;
   min-height: 0;
   border-radius: 0;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: var(--bg-primary);
   border: var(--border-width) solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   overflow: hidden;
