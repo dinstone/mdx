@@ -9,7 +9,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
-import { getBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
+import { getBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
 import { defaultTheme, findThemeByName, findThemeByValue } from '../config/themes'
 import type { ThemeOption } from '../config/themes'
@@ -64,7 +64,10 @@ function buildFmBlock(fields: Record<string, string>): string {
 // ---------------------------------------------------------------------------
 
 export const useEditorStore = defineStore('editor', () => {
-  const bridge = getBridge()
+  /** Resolve bridge on every access — DesktopBridge may not be ready at store-creation time. */
+  function bridge(): IServiceBridge {
+    return getBridge()
+  }
   const workspace = useWorkspaceStore()
 
   // ---- state ----
@@ -113,7 +116,7 @@ export const useEditorStore = defineStore('editor', () => {
     loading.value = true
     error.value = null
     try {
-      const result: ReadResult = await bridge.readFile(absPath)
+      const result: ReadResult = await bridge().readFile(absPath)
       filePath.value = result.filePath
       meta.value = result.meta
 
@@ -140,7 +143,7 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       // Re-combine frontmatter + body
       const fullContent = fmBlock.value + rawContent.value
-      await bridge.writeFile(filePath.value, fullContent)
+      await bridge().writeFile(filePath.value, fullContent)
       isModified.value = false
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to save file'

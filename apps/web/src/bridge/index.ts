@@ -21,32 +21,36 @@ declare global {
   }
 }
 
-let _bridge: IServiceBridge | null = null
+let _browserBridge: BrowserBridge | null = null
+let _desktopBridge: IServiceBridge | null = null
 
-/**
- * Returns the singleton bridge instance synchronously.
- * In desktop mode, call initDesktop() first (from main.ts) so the bridge
- * is ready before any store tries to use it.
- */
-export function getBridge(): IServiceBridge {
-  if (_bridge) return _bridge
+/** Always available — IndexedDB-backed bridge for Temp/virtual workspaces. */
+export function getBrowserBridge(): IServiceBridge {
+  if (!_browserBridge) _browserBridge = new BrowserBridge()
+  return _browserBridge
+}
 
-  // Default to BrowserBridge. In desktop mode, initDesktop() will replace it.
-  _bridge = new BrowserBridge()
-  return _bridge
+/** Desktop bridge — only available after initDesktop(). Uses Go backend for real filesystem paths. */
+export function getDesktopBridge(): IServiceBridge | null {
+  return _desktopBridge
 }
 
 /**
- * Replace the bridge with DesktopBridge.  Must be called AFTER
- * @wailsio/runtime has set up window._wails (i.e. after the dynamic
- * import("@wailsio/runtime") resolves).
- *
- * Uses dynamic import so browser mode never touches desktopBridge.ts
- * or any of its binding dependencies.
+ * Returns the default bridge for the current environment:
+ *   - Desktop mode (initDesktop called) → DesktopBridge
+ *   - Browser-only mode                   → BrowserBridge
+ */
+export function getBridge(): IServiceBridge {
+  return _desktopBridge ?? getBrowserBridge()
+}
+
+/**
+ * Initialize DesktopBridge. Must be called AFTER @wailsio/runtime sets up
+ * window._wails (via dynamic import in main.ts).
  */
 export async function initDesktop(): Promise<void> {
   const { DesktopBridge } = await import('./desktopBridge')
-  _bridge = new DesktopBridge()
+  _desktopBridge = new DesktopBridge()
 }
 
 // Re-export types so consumers only import from '@/bridge'

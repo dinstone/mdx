@@ -17,10 +17,11 @@ const emit = defineEmits<{
   createFile: [dirPath: string]
   createFolder: [dirPath: string]
   selectWorkspace: []
-  rename: [path: string]
+  renameEntry: [payload: { path: string; newName: string }]
   delete: [path: string]
   movePicker: [path: string]
   copyTitle: [title: string]
+  expandDir: [dirPath: string]
 }>()
 
 const filter = ref('')
@@ -166,10 +167,11 @@ function setSort(mode: 'recent' | 'name-asc') {
         @select="$emit('select', $event)"
         @create-file="$emit('createFile', $event)"
         @create-folder="$emit('createFolder', $event)"
-        @rename="$emit('rename', $event)"
+        @rename-entry="$emit('renameEntry', $event)"
         @delete="$emit('delete', $event)"
         @move-picker="$emit('movePicker', $event)"
         @copy-title="$emit('copyTitle', $event)"
+        @expand="$emit('expandDir', $event)"
       />
     </div>
 

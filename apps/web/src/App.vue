@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { getBridge } from './bridge'
 import type { FileEntry } from './bridge'
 import { useWorkspaceStore } from './stores/workspace'
+import { VirtualWorkspace, type IWorkspace } from './stores/workspace-types'
 import { useEditorStore } from './stores/editor'
 import AppHeader from './components/AppHeader.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
@@ -13,17 +14,15 @@ import PreviewPanel from './components/PreviewPanel.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
 
-const bridge = getBridge()
+const isDesktop = computed(() => getBridge().isDesktop)
 const workspace = useWorkspaceStore()
 const editor = useEditorStore()
 
 const showWorkspacePicker = ref(false)
 const workspacePickerList = computed(() => {
-  // In browser mode only browser/temp workspaces are openable.
-  // In desktop mode only real folder paths are openable.
-  const list = workspace.recentWorkspaces.filter((w) => w.isTemp === !bridge.isDesktop)
-  if (!bridge.isDesktop && !list.some((w) => w.path === '/Temp')) {
-    return [{ path: '/Temp', name: 'Temp', isTemp: true }, ...list]
+  const list = workspace.recentWorkspaces
+  if (!list.some((w) => w.path === '/Temp')) {
+    return [new VirtualWorkspace('/Temp', 'Temp'), ...list]
   }
   return list
 })
@@ -38,7 +37,7 @@ const isDark = ref((() => {
 })())
 
 onMounted(async () => {
-  const info = await bridge.getPlatform()
+  const info = await getBridge().getPlatform()
   platformInfo.value = info
 })
 
@@ -59,7 +58,7 @@ function toggleDark() {
 
 async function pickDesktopFolder() {
   try {
-    const state = await bridge.pickFolder()
+    const state = await getBridge().pickFolder()
     workspace.applyState(state)
   } catch (e) {
     console.error('Open folder failed', e)
@@ -70,12 +69,11 @@ function selectWorkspace() {
   showWorkspacePicker.value = true
 }
 
-async function onSelectWorkspace(path: string) {
+async function onSelectWorkspace(ws: IWorkspace) {
   showWorkspacePicker.value = false
-  if (!path) return
-  if (path === workspace.rootPath) return
+  if (!ws) return
   try {
-    await workspace.open(path)
+    await workspace.openWorkspace(ws)
   } catch (e) {
     console.error('Open workspace failed', e)
   }
@@ -97,25 +95,19 @@ async function createFolder(dirPath?: string) {
   await workspace.createFolder(targetDir, `folder-${Date.now()}`)
 }
 
-async function renameEntry(path: string) {
-  const entry = findEntry(path, workspace.entries)
+async function renameEntry(payload: { path: string; newName: string }) {
+  const entry = findEntry(payload.path, workspace.entries)
   if (!entry) return
-  const isFile = entry.type !== 'dir'
-  const displayName = isFile ? entry.name.replace(/\.md$/i, '') : entry.name
-  const newName = window.prompt('新名称', displayName)
-  if (!newName || newName === displayName) return
-  if (isFile) {
-    await workspace.renameFile(path, `${newName.replace(/\.md$/i, '')}.md`)
+  if (entry.type === 'file') {
+    await workspace.renameFile(payload.path, `${payload.newName.replace(/\.md$/i, '')}.md`)
   } else {
-    await workspace.renameFolder(path, newName)
+    await workspace.renameFolder(payload.path, payload.newName)
   }
 }
 
 async function deleteEntry(path: string) {
   const entry = findEntry(path, workspace.entries)
   if (!entry) return
-  const confirmed = window.confirm(`确定删除 "${entry.name}" 吗？`)
-  if (!confirmed) return
   if (entry.type === 'dir') {
     await workspace.deleteFolder(path)
   } else {
@@ -274,7 +266,7 @@ const workspaceGridColumns = computed(() => {
   <div class="app">
     <AppHeader
       :is-dark="isDark"
-      :is-desktop="bridge.isDesktop"
+      :is-desktop="isDesktop"
       :sidebar-visible="showSidebar"
       @toggle-dark="toggleDark"
       @toggle-sidebar="toggleSidebar"
@@ -299,10 +291,11 @@ const workspaceGridColumns = computed(() => {
             @create-file="createFile"
             @create-folder="createFolder"
             @select-workspace="selectWorkspace"
-            @rename="renameEntry"
+            @rename-entry="renameEntry"
             @delete="deleteEntry"
             @move-picker="onMovePicker"
             @copy-title="copyTitle"
+            @expand-dir="workspace.expandDirectory($event)"
           />
         </div>
       </div>
@@ -369,7 +362,7 @@ const workspaceGridColumns = computed(() => {
       :open="showWorkspacePicker"
       :current-path="workspace.rootPath"
       :recent-workspaces="workspacePickerList"
-      :is-desktop="bridge.isDesktop"
+      :is-desktop="isDesktop"
       @close="showWorkspacePicker = false"
       @select="onSelectWorkspace"
       @open-folder="onOpenWorkspaceFolder"

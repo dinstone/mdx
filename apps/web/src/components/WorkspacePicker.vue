@@ -1,27 +1,22 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-
-export interface RecentWorkspace {
-  path: string
-  name: string
-  isTemp: boolean
-}
+import type { IWorkspace } from '../stores/workspace-types'
 
 const props = defineProps<{
   open: boolean
   currentPath?: string
-  recentWorkspaces: RecentWorkspace[]
+  recentWorkspaces: IWorkspace[]
   isDesktop: boolean
 }>()
 
 const emit = defineEmits<{
   close: []
-  select: [path: string]
+  select: [ws: IWorkspace]
   openFolder: []
 }>()
 
-function onSelect(path: string) {
-  emit('select', path)
+function onSelect(ws: IWorkspace) {
+  emit('select', ws)
 }
 
 function onOpenFolder() {
@@ -63,10 +58,10 @@ onUnmounted(() => {
             v-for="ws in recentWorkspaces"
             :key="ws.path"
             :class="['workspace-picker-item', { active: ws.path === currentPath }]"
-            @click="onSelect(ws.path)"
+            @click="onSelect(ws)"
           >
             <svg
-              v-if="ws.isTemp"
+              v-if="ws.kind === 'virtual'"
               class="workspace-picker-icon"
               width="18"
               height="18"

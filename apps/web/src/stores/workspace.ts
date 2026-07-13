@@ -1,37 +1,57 @@
 /**
- * Workspace store — manages the workspace lifecycle and file tree.
- * All I/O goes through the platform bridge, so this store works
- * identically in Wails desktop and browser-only mode.
+ * Workspace store — manages workspace lifecycle only.
+ *
+ * Responsibilities:
+ *   - current: which IWorkspace is active
+ *   - recentWorkspaces: persisted recently-opened list
+ *   - open() / close() + serialisation
+ *
+ * Everything else (file-tree state, CRUD, refresh) is owned by the IWorkspace
+ * object itself.  The store exposes thin delegation computed / methods for
+ * template convenience so consumers can write `workspace.entries` instead of
+ * `workspace.current?.entries`.
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { getBridge, type WorkspaceState, type FileEntry } from '../bridge'
-
-export interface RecentWorkspace {
-  path: string
-  name: string
-  isTemp: boolean
-}
+import { shallowRef, computed, triggerRef } from 'vue'
+import type { WorkspaceState, FileEntry } from '../bridge'
+import {
+  type IWorkspace,
+  type RecentEntry,
+  VirtualWorkspace,
+  createWorkspace,
+  workspaceForPath,
+} from './workspace-types'
 
 const RECENT_WORKSPACES_KEY = 'mdx-recent-workspaces'
 const MAX_RECENT_WORKSPACES = 10
 
 export const useWorkspaceStore = defineStore('workspace', () => {
-  const bridge = getBridge()
-
   // ---- state ----
-  const rootPath = ref('')
-  const title = ref('')
-  const entries = ref<FileEntry[]>([])
-  const activeFileId = ref('')
-  const loading = ref(false)
-  const error = ref<string | null>(null)
 
-  // Recently opened workspaces, persisted to localStorage.
-  const recentWorkspaces = ref<RecentWorkspace[]>([])
+  /** The currently-open workspace object.
+   *  shallowRef — prevents Vue from deep-reactively wrapping the IWorkspace
+   *  class instance, which would auto-unwrap its internal Ref properties and
+   *  break getters like `get rootPath() { return this._rootPath.value }`. */
+  const current = shallowRef<IWorkspace | null>(null)
 
-  // ---- getters ----
+  /** Persisted recently-opened workspaces.
+   *  shallowRef — same reason as current: prevents Vue from auto-unwrapping
+   *  internal Ref properties on IWorkspace instances, which would break
+   *  saveRecentWorkspaces() and produce garbage localStorage data. */
+  const recentWorkspaces = shallowRef<IWorkspace[]>([])
+
+  /** Monotonic counter to discard stale open() results. */
+  let openSeq = 0
+
+  // ---- computed (delegate to current) ----
+
+  const rootPath = computed(() => current.value?.rootPath ?? '')
+  const title = computed(() => current.value?.title ?? '')
+  const entries = computed(() => [...(current.value?.entries ?? [])])
+  const activeFileId = computed(() => current.value?.activeFileId ?? '')
+  const loading = computed(() => current.value?.loading ?? false)
+  const error = computed(() => current.value?.error ?? null)
   const isOpen = computed(() => rootPath.value !== '')
   const hasActiveFile = computed(() => activeFileId.value !== '')
 
@@ -48,188 +68,199 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return result
   })
 
-  // ---- recent workspaces ----
+  // ---- serialisation ----
+
   function loadRecentWorkspaces() {
     try {
       const raw = localStorage.getItem(RECENT_WORKSPACES_KEY)
       if (raw) {
-        recentWorkspaces.value = JSON.parse(raw)
+        const data: RecentEntry[] = JSON.parse(raw)
+        recentWorkspaces.value = data.map((e) => createWorkspace(e))
       }
     } catch {
       /* non-critical */
     }
   }
 
-  function addRecentWorkspace(state: WorkspaceState) {
-    const isTemp = !bridge.isDesktop
-    const name = state.title || state.rootPath.split('/').pop() || state.rootPath
-    const item: RecentWorkspace = { path: state.rootPath, name, isTemp }
-    const existing = recentWorkspaces.value.findIndex((w) => w.path === item.path)
-    if (existing >= 0) {
-      recentWorkspaces.value.splice(existing, 1)
-    }
-    recentWorkspaces.value.unshift(item)
-    if (recentWorkspaces.value.length > MAX_RECENT_WORKSPACES) {
-      recentWorkspaces.value = recentWorkspaces.value.slice(0, MAX_RECENT_WORKSPACES)
-    }
+  function saveRecentWorkspaces() {
     try {
-      localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(recentWorkspaces.value))
+      const data: RecentEntry[] = recentWorkspaces.value.map((w) => ({
+        path: w.path,
+        name: w.name,
+        isTemp: w.kind === 'virtual',
+      }))
+      localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(data))
     } catch {
       /* non-critical */
     }
   }
 
-  // ---- actions ----
-  async function open(dirPath: string) {
-    loading.value = true
-    error.value = null
+  function addRecentWorkspace(ws: IWorkspace) {
+    // Build a new array (immutable) so shallowRef detects the change.
+    const filtered = recentWorkspaces.value.filter((w) => w.path !== ws.path)
+    recentWorkspaces.value = [ws, ...filtered].slice(0, MAX_RECENT_WORKSPACES)
+    saveRecentWorkspaces()
+  }
+
+  /** Find a workspace by path in recents, or create a new one. */
+  function resolveWorkspace(dirPath: string): IWorkspace {
+    return (
+      recentWorkspaces.value.find((w) => w.path === dirPath) ??
+      workspaceForPath(dirPath)
+    )
+  }
+
+  // ---- actions (lifecycle) ----
+
+  /**
+   * Startup entry point.  Loads recently-opened workspaces from
+   * localStorage, picks the most recent one, and opens it.
+   *
+   * Falls back to a temp VirtualWorkspace when no recents exist.
+   *
+   * Safe to call multiple times (e.g. browser-mode init followed by
+   * DesktopBridge re-open in Wails) — openSeq handles race protection.
+   */
+  async function open() {
+    loadRecentWorkspaces()
+    if (recentWorkspaces.value.length > 0) {
+      await openWorkspace(recentWorkspaces.value[0])
+    } else {
+      await openWorkspace(new VirtualWorkspace('/Temp', 'Temp'))
+    }
+  }
+
+  /**
+   * Open a specific workspace explicitly (e.g. picked from the
+   * WorkspacePicker or re-opened after DesktopBridge init).
+   *
+   * Sets current immediately so that loading state is visible; the openSeq
+   * counter discards stale results when overlapping calls occur.
+   */
+  async function openWorkspace(ws: IWorkspace) {
+    const seq = ++openSeq
+    current.value = ws
     try {
-      const state: WorkspaceState = await bridge.openWorkspace(dirPath)
-      rootPath.value = state.rootPath
-      title.value = state.title
-      entries.value = state.entries
-      activeFileId.value = state.activeFileId
-      addRecentWorkspace(state)
+      await ws.open()
+      if (seq !== openSeq) return
+      addRecentWorkspace(ws)
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : 'Failed to open workspace'
+      if (seq !== openSeq) return
+      current.value = null
       throw e
-    } finally {
-      loading.value = false
     }
   }
 
   async function close() {
-    await bridge.closeWorkspace()
-    rootPath.value = ''
-    title.value = ''
-    entries.value = []
-    activeFileId.value = ''
-    error.value = null
+    if (current.value) await current.value.close()
+    current.value = null
   }
 
-  async function refresh() {
-    if (!rootPath.value) return
-    loading.value = true
-    try {
-      entries.value = await bridge.listFolder(rootPath.value)
-    } finally {
-      loading.value = false
+  /** Apply a pre-fetched state snapshot (e.g. from desktop pickFolder). */
+  function applyState(state: WorkspaceState) {
+    const ws = resolveWorkspace(state.rootPath)
+    ws.applyState(state)
+    current.value = ws
+    addRecentWorkspace(ws)
+  }
+
+  // ---- helpers ----
+
+  /** Forces all shallowRef-based computeds (entries, rootPath, title, etc.)
+   *  to re-evaluate after a mutation on the workspace instance.  Without this,
+   *  in-place mutations on deeply-nested properties inside the class's internal
+   *  refs are invisible to the Pinia computed chain.
+   *
+   *  For async mutations the triggerRef fires AFTER the promise settles so
+   *  the internal refs have already been updated. */
+  function mutate<T>(fn: () => T): T {
+    const result = fn()
+    if (result instanceof Promise) {
+      return result.then((value) => {
+        triggerRef(current)
+        return value
+      }) as unknown as T
     }
+    triggerRef(current)
+    return result
+  }
+
+  // ---- actions (thin delegation to current) ----
+
+  function expandDirectory(dirPath: string) {
+    return mutate(() => current.value?.expandDirectory(dirPath))
+  }
+
+  function refresh() {
+    return mutate(() => current.value?.refresh())
   }
 
   function setActiveFile(fileId: string) {
-    activeFileId.value = fileId
-    bridge.setActiveFile(fileId).catch(() => {
-      /* non-critical */
-    })
+    return mutate(() => current.value?.setActiveFile(fileId))
   }
 
-  // ---- folder / file mutations (refresh after) ----
-  async function createFile(dirPath: string, name: string): Promise<string> {
-    const path = await bridge.createFile(dirPath, name)
-    await refresh()
-    return path
+  function createFile(dirPath: string, name: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.createFile(dirPath, name))
   }
 
-  async function deleteFile(absPath: string) {
-    await bridge.deleteFile(absPath)
-    if (activeFileId.value === absPath) activeFileId.value = ''
-    await refresh()
+  function deleteFile(absPath: string): Promise<void> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.deleteFile(absPath))
   }
 
-  async function renameFile(oldPath: string, newName: string) {
-    const newPath = await bridge.renameFile(oldPath, newName)
-    if (activeFileId.value === oldPath) activeFileId.value = newPath
-    await refresh()
-    return newPath
+  function renameFile(oldPath: string, newName: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.renameFile(oldPath, newName))
   }
 
-  async function moveFile(sourcePath: string, targetDir: string) {
-    const newPath = await bridge.moveFile(sourcePath, targetDir)
-    if (activeFileId.value === sourcePath) activeFileId.value = newPath
-    await refresh()
-    return newPath
+  function moveFile(sourcePath: string, targetDir: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.moveFile(sourcePath, targetDir))
   }
 
-  async function createFolder(parentDir: string, name: string) {
-    const path = await bridge.createFolder(parentDir, name)
-    await refresh()
-    return path
+  function createFolder(parentDir: string, name: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.createFolder(parentDir, name))
   }
 
-  async function deleteFolder(absPath: string) {
-    await bridge.deleteFolder(absPath)
-    await refresh()
+  function deleteFolder(absPath: string): Promise<void> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.deleteFolder(absPath))
   }
 
-  async function renameFolder(oldPath: string, newName: string) {
-    const newPath = await bridge.renameFolder(oldPath, newName)
-    await refresh()
-    return newPath
+  function renameFolder(oldPath: string, newName: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.renameFolder(oldPath, newName))
   }
 
-  async function moveFolder(sourcePath: string, targetPath: string) {
-    const newPath = await bridge.moveFolder(sourcePath, targetPath)
-    await refresh()
-    return newPath
-  }
-
-  // Apply a workspace state snapshot (e.g. from a menu-driven open).
-  function applyState(state: WorkspaceState) {
-    rootPath.value = state.rootPath
-    title.value = state.title
-    entries.value = state.entries
-    activeFileId.value = state.activeFileId
-    error.value = null
-    addRecentWorkspace(state)
-  }
-
-  // Auto-load persisted workspace on startup if available
-  loadRecentWorkspaces()
-  bridge.getWorkspaceState().then((state) => {
-    if (state.rootPath) {
-      applyState(state)
-    } else {
-      tryAutoOpenRecent()
-    }
-  }).catch(() => {
-    tryAutoOpenRecent()
-  })
-
-  function tryAutoOpenRecent() {
-    if (recentWorkspaces.value.length > 0) {
-      open(recentWorkspaces.value[0].path).catch(() => {
-        openTempFallback()
-      })
-    } else {
-      openTempFallback()
-    }
-  }
-
-  function openTempFallback() {
-    open('/Temp').catch(() => {
-      /* non-critical */
-    })
+  function moveFolder(sourcePath: string, targetPath: string): Promise<string> {
+    if (!current.value) throw new Error('No workspace')
+    return mutate(() => current.value!.moveFolder(sourcePath, targetPath))
   }
 
   return {
     // state
+    current,
+    recentWorkspaces,
+    loading,
+    error,
+    // computed (delegation)
     rootPath,
     title,
     entries,
     activeFileId,
-    loading,
-    error,
-    recentWorkspaces,
-    // getters
     isOpen,
     hasActiveFile,
     mdFiles,
-    // actions
+    // lifecycle
     open,
+    openWorkspace,
     close,
-    refresh,
     applyState,
+    // delegation
+    expandDirectory,
+    refresh,
     setActiveFile,
     createFile,
     deleteFile,
@@ -239,6 +270,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     deleteFolder,
     renameFolder,
     moveFolder,
+    // utility
+    resolveWorkspace,
     addRecentWorkspace,
     loadRecentWorkspaces,
   }

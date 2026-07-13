@@ -32,6 +32,14 @@ app.use(pinia);
 // runtime event system is not available (e.g. in browser-only mode).
 app.mount("#app");
 
+// Open the most recent workspace (or create a temp one).
+// In browser mode this uses BrowserBridge (IndexedDB); in desktop mode
+// Wails will re-open system workspaces via DesktopBridge below.
+const store = useWorkspaceStore();
+store.open().catch(() => {
+  /* non-critical */
+});
+
 // Only load the Wails runtime inside the Wails desktop shell (WebView).
 // In browser-only dev mode the runtime attempts POST /wails/runtime and
 // would 404 without a running Go backend.
@@ -42,24 +50,24 @@ if (window.__WAILS_MODE__) {
     // Go backend communications layer is ready.
     await initDesktop();
 
+    // DesktopBridge is now ready — re-open with the real backend.
+    // store.open() handles loadRecents → pick most recent → open.
+    try { await store.open(); } catch { /* ignore */ }
+
     // Listen for native menu-driven workspace events from the Go backend.
     try {
       Events.On("workspace:opened", (event: any) => {
         const path = event?.data;
         if (typeof path === "string" && path) {
-          useWorkspaceStore()
-            .open(path)
-            .catch(() => {
-              /* ignore */
-            });
+          store.openWorkspace(store.resolveWorkspace(path)).catch(() => {
+            /* ignore */
+          });
         }
       });
       Events.On("workspace:closed", () => {
-        useWorkspaceStore()
-          .close()
-          .catch(() => {
-            /* ignore */
-          });
+        store.close().catch(() => {
+          /* ignore */
+        });
       });
     } catch {
       // Events system not available (browser mode or pre-init phase).

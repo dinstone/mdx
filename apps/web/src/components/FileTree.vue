@@ -11,23 +11,51 @@ const emit = defineEmits<{
   select: [path: string]
   createFile: [dirPath: string]
   createFolder: [dirPath: string]
-  rename: [path: string]
+  renameEntry: [payload: { path: string; newName: string }]
   delete: [path: string]
   movePicker: [path: string]
   copyTitle: [title: string]
+  expand: [dirPath: string]
 }>()
 
 const expanded = ref<Set<string>>(new Set())
 
 const filteredEntries = computed(() => props.entries)
 
+// ---- inline rename ----
+const editingPath = ref<string | null>(null)
+const editValue = ref('')
+
+function startRename(entry: FileEntry) {
+  closeMenu()
+  editingPath.value = entry.path
+  editValue.value = entry.type === 'file' ? entry.name.replace(/\.md$/i, '') : entry.name
+}
+
+function confirmRename(entry: FileEntry) {
+  const newName = editValue.value.trim()
+  editingPath.value = null
+  if (!newName) return
+  const oldDisplay = entry.type === 'file' ? entry.name.replace(/\.md$/i, '') : entry.name
+  if (newName === oldDisplay) return
+  emit('renameEntry', { path: entry.path, newName })
+}
+
+function cancelRename() {
+  editingPath.value = null
+}
+
 function toggleFolder(entry: FileEntry, e: MouseEvent) {
   e.stopPropagation()
-  if (!entry.children?.length) return
+  // Always toggle the expanded state first so the chevron rotates immediately.
   if (expanded.value.has(entry.path)) {
     expanded.value.delete(entry.path)
   } else {
     expanded.value.add(entry.path)
+    // If no children yet, request lazy-load from the parent.
+    if (!entry.children?.length) {
+      emit('expand', entry.path)
+    }
   }
 }
 
@@ -92,7 +120,7 @@ function handleMenuAction(action: 'copyTitle' | 'rename' | 'move' | 'delete') {
   }
 
   if (action === 'rename') {
-    emit('rename', entry.path)
+    startRename(entry)
     return
   }
 
@@ -160,7 +188,16 @@ onUnmounted(() => {
             <line x1="16" y1="17" x2="8" y2="17" />
             <polyline points="10 9 9 9 8 9" />
           </svg>
-          <span class="file-title">{{ entry.name.replace(/\.md$/, '') }}</span>
+          <input
+            v-if="editingPath === entry.path"
+            ref="renameInput"
+            v-model="editValue"
+            class="file-rename-input"
+            @keyup.enter="confirmRename(entry)"
+            @keyup.escape="cancelRename"
+            @blur="confirmRename(entry)"
+          />
+          <span v-else class="file-title">{{ entry.name.replace(/\.md$/, '') }}</span>
           <span class="file-more" @click.stop="onContextMenu(entry, $event)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="5" r="1" />
@@ -208,7 +245,15 @@ onUnmounted(() => {
         >
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
-        <span class="folder-name">{{ entry.name }}</span>
+        <input
+          v-if="editingPath === entry.path"
+          v-model="editValue"
+          class="folder-rename-input"
+          @keyup.enter="confirmRename(entry)"
+          @keyup.escape="cancelRename"
+          @blur="confirmRename(entry)"
+        />
+        <span v-else class="folder-name">{{ entry.name }}</span>
         <span v-if="entry.fileCount !== undefined" class="folder-count">{{ entry.fileCount }}</span>
         <div class="dir-actions">
           <button class="dir-action-btn" title="新建文件" @click.stop="onCreateFile(entry, $event)">
@@ -233,10 +278,11 @@ onUnmounted(() => {
         @select="onSelect($event)"
         @create-file="emit('createFile', $event)"
         @create-folder="emit('createFolder', $event)"
-        @rename="emit('rename', $event)"
+        @rename-entry="emit('renameEntry', $event)"
         @delete="emit('delete', $event)"
         @move-picker="emit('movePicker', $event)"
         @copy-title="emit('copyTitle', $event)"
+        @expand="emit('expand', $event)"
       />
     </li>
   </ul>
@@ -337,6 +383,20 @@ onUnmounted(() => {
   flex: 1;
 }
 
+.file-rename-input {
+  flex: 1;
+  min-width: 0;
+  border: var(--border-width) solid var(--accent-primary);
+  border-radius: 0;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
 .file-doc-icon {
   color: var(--text-tertiary);
   flex-shrink: 0;
@@ -408,6 +468,20 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.folder-rename-input {
+  flex: 1;
+  min-width: 0;
+  border: var(--border-width) solid var(--accent-primary);
+  border-radius: 0;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
 .folder-count {
