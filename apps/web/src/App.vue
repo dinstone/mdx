@@ -193,7 +193,7 @@ async function copyWechat() {
 }
 
 function openStorage() {
-  pickDesktopFolder()
+  selectWorkspace()
 }
 
 function openImageHost() {

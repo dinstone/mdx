@@ -447,15 +447,9 @@ export class BrowserBridge implements IServiceBridge {
   }
 
   async pickFolder(): Promise<WorkspaceState> {
-    let name = 'Temp'
-    try {
-      // Try File System Access API to pick a real directory
-      const dirHandle = await window.showDirectoryPicker()
-      name = dirHandle.name
-    } catch {
-      // Fallback to prompt if File System Access API is unavailable
-      name = typeof window !== 'undefined' ? window.prompt('Workspace folder name?') || 'Temp' : 'Temp'
-    }
+    const name = typeof window !== 'undefined'
+      ? window.prompt('输入工作区名称') || 'Temp'
+      : 'Temp'
     return this.openWorkspace(`/${name}`)
   }
 
