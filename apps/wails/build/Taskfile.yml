@@ -70,8 +70,12 @@ tasks:
   sync:version:
     summary: Sync version from root package.json to build/config.yml
     internal: true
+    vars:
+      VERSION:
+        sh: node -p "require('../../package.json').version"
     cmds:
-      - node -e 'var f=require("fs");var v=JSON.parse(f.readFileSync("../../package.json","utf8")).version;var c=f.readFileSync("build/config.yml","utf8").replace(/^(  version: ")[^"]+(")/m,"$1"+v+"$2");f.writeFileSync("build/config.yml",c)'
+      # macOS sed: -i '' / Linux sed: -i
+      - "sed -i.bak 's/^  version: \"[^\"]*\"/  version: \"{{.VERSION}}\"/' build/config.yml && rm -f build/config.yml.bak"
 
   build:frontend:
     label: build:frontend (DEV={{.DEV}} RUNNER={{.PACKAGE_MANAGER}})

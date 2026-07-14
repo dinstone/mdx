@@ -41,6 +41,8 @@ dev_mode:
       - node_modules
       - frontend
       - ../web/node_modules
+      - ../web/bindings
+      - .mdx-images
       - bin
     file:
       - .DS_Store

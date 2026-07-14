@@ -7,6 +7,9 @@ import { markdown } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { customKeymap } from './editorShortcuts'
+import { imageDropPaste } from '../editor/imageDropPaste'
+import { processImages } from '../services/imagePipeline'
+import { useToast } from '../composables/useToast'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 import SearchPanel from './SearchPanel.vue'
 
@@ -28,6 +31,7 @@ const viewRef = ref<EditorView | null>(null)
 const isProgrammaticScroll = ref(false)
 const showSearch = ref(false)
 const currentView = computed(() => viewRef.value as EditorView | null)
+const toast = useToast()
 
 function getScrollPercent(): number {
   const view = viewRef.value
@@ -100,6 +104,28 @@ const saveStatusText = computed(() => {
   return props.saved ? '已保存' : '未保存'
 })
 
+/** 工具栏图片上传 */
+async function onImageUpload(files: File[]) {
+  if (!viewRef.value) return
+  const view = viewRef.value
+  try {
+    const entries = await processImages(files)
+    const pos = view.state.selection.main.from
+    let markdown = ''
+    for (const entry of entries) {
+      const altText = files.find((f) => f.name)?.name?.replace(/\.[^.]+$/, '') || entry.hash
+      markdown += `![${altText}](img://${entry.hash})\n`
+    }
+    view.dispatch({
+      changes: { from: pos, insert: markdown },
+      selection: { anchor: pos + markdown.length },
+    })
+    toast.success(`已插入 ${entries.length} 张图片`)
+  } catch (e: any) {
+    toast.error(`图片处理失败: ${e?.message || '未知错误'}`)
+  }
+}
+
 onMounted(() => {
   if (!editorContainer.value) return
 
@@ -133,6 +159,7 @@ onMounted(() => {
       saveKeymap,
       markdown(),
       syntaxHighlighting(headingHighlight),
+      imageDropPaste(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -219,7 +246,7 @@ onMounted(() => {
       @code="insertSnippet('`', '`')"
       @quote="insertSnippet('> ', '')"
       @link="insertSnippet('[', '](url)')"
-      @image="insertSnippet('![', '](url)')"
+      @image-upload="onImageUpload"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
       @search="showSearch = true"
     />

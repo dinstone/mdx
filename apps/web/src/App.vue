@@ -14,7 +14,7 @@ import PreviewPanel from './components/PreviewPanel.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
-import { copyToWechat } from './services/wechatCopyService'
+import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
 import { useToast } from './composables/useToast'
 import ToastMessage from './components/ToastMessage.vue'
 
@@ -56,6 +56,34 @@ watch(isDark, (value) => {
     document.documentElement.removeAttribute('data-ui-theme')
   }
 }, { immediate: true })
+
+// 预计算图片内联后的微信 HTML，避免复制时异步操作导致 user gesture 过期
+const cachedWechatHtml = ref('')
+let _wechatBuildSeq = 0
+watch(
+  () => editor.wechatHtml,
+  async (html) => {
+    if (!html) {
+      cachedWechatHtml.value = ''
+      return
+    }
+    const seq = ++_wechatBuildSeq
+    try {
+      const inlined = await buildInlinedWechatHtml(html)
+      // 防止旧请求覆盖新结果
+      if (seq === _wechatBuildSeq) {
+        cachedWechatHtml.value = inlined
+      }
+    } catch (e) {
+      console.warn('[App] buildInlinedWechatHtml failed:', e)
+      // 降级：没有图片内联也先缓存，复制时 execCommand 仍可工作
+      if (seq === _wechatBuildSeq) {
+        cachedWechatHtml.value = html
+      }
+    }
+  },
+  { immediate: true },
+)
 
 function toggleDark() {
   isDark.value = !isDark.value
@@ -209,10 +237,11 @@ async function copyHtml() {
   }
 }
 
-async function copyWechat() {
-  if (!editor.wechatHtml) return
+function copyWechat() {
+  // 使用预计算的图片内联 HTML，同步复制，避免 user gesture 过期
+  if (!cachedWechatHtml.value) return
   try {
-    const copied = await copyToWechat(editor.wechatHtml)
+    const copied = copyToWechat(cachedWechatHtml.value, { skipImageInline: true })
     if (copied) {
       toast.success('已复制，可以直接粘贴至微信公众号')
     } else {

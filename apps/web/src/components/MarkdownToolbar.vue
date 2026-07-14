@@ -13,7 +13,7 @@ const emit = defineEmits<{
   code: []
   quote: []
   link: []
-  image: []
+  'image-upload': [files: File[]]
   table: []
   search: []
 }>()
@@ -34,10 +34,24 @@ const tools: ToolItem[] = [
   { key: 'code', title: '行内代码', handler: () => emit('code') },
   { key: 'quote', title: '引用', handler: () => emit('quote') },
   { key: 'link', title: '链接', handler: () => emit('link') },
-  { key: 'image', title: '图片', handler: () => emit('image') },
   { key: 'table', title: '表格', handler: () => emit('table') },
   { key: 'search', title: '查找和替换 (Command+F)', handler: () => emit('search') },
 ]
+
+const imageInputRef = ref<HTMLInputElement>()
+
+function onImageClick() {
+  imageInputRef.value?.click()
+}
+
+function onImageChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = input.files
+  if (!files || files.length === 0) return
+  emit('image-upload', Array.from(files))
+  // 重置 input 以便重复选同一文件
+  input.value = ''
+}
 
 const showHeadingMenu = ref(false)
 const headingMenuRef = ref<HTMLDivElement>()
@@ -126,10 +140,22 @@ onBeforeUnmount(() => {
       <span v-else-if="tool.key === 'code'" class="tool-icon">&lt;/&gt;</span>
       <span v-else-if="tool.key === 'quote'" class="tool-icon">❝</span>
       <span v-else-if="tool.key === 'link'" class="tool-icon">🔗</span>
-      <span v-else-if="tool.key === 'image'" class="tool-icon">🖼</span>
       <span v-else-if="tool.key === 'table'" class="tool-icon">▦</span>
       <span v-else-if="tool.key === 'search'" class="tool-icon">🔍</span>
     </button>
+
+    <!-- 图片上传按钮 -->
+    <button class="toolbar-btn" title="上传图片" @click="onImageClick">
+      <span class="tool-icon">🖼</span>
+    </button>
+    <input
+      ref="imageInputRef"
+      type="file"
+      accept="image/*"
+      multiple
+      style="display:none"
+      @change="onImageChange"
+    />
 
     <SyntaxHelpPopover />
   </div>

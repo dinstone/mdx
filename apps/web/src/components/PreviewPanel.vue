@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { getImageStorage } from '../services/imageStorage'
 
 const props = defineProps<{
   html: string
@@ -16,6 +17,16 @@ const isProgrammaticScroll = ref(false)
 
 let mermaidReady = false
 
+// blob URL 追踪，组件卸载时 revoke
+const _blobUrls: string[] = []
+
+function revokeBlobUrls() {
+  for (const url of _blobUrls) {
+    URL.revokeObjectURL(url)
+  }
+  _blobUrls.length = 0
+}
+
 async function ensureMermaid() {
   if (mermaidReady) return
   const mermaid = await import('mermaid')
@@ -23,11 +34,41 @@ async function ensureMermaid() {
   mermaidReady = true
 }
 
+/** 解析 HTML 中的 img:// 链接，替换为 blob URL */
+async function resolveImageUrls() {
+  if (!container.value) return
+  revokeBlobUrls()
+
+  const imgs = container.value.querySelectorAll('img[src^="img://"]')
+  if (imgs.length === 0) return
+
+  const storage = await getImageStorage()
+  const imgArray = Array.from(imgs) as HTMLImageElement[]
+  for (const img of imgArray) {
+    const hash = img.src.replace('img://', '')
+    try {
+      const blob = await storage.load(hash)
+      if (blob) {
+        const url = URL.createObjectURL(blob)
+        _blobUrls.push(url)
+        img.src = url
+      }
+    } catch {
+      // 图片不存在，保留原始 img:// URL（会显示为裂图）
+    }
+  }
+}
+
 watch(
   () => props.html,
   async () => {
     await nextTick()
     if (!container.value) return
+
+    // Resolve img:// URLs
+    await resolveImageUrls()
+
+    // Mermaid rendering
     const nodes = container.value.querySelectorAll('.mermaid')
     if (nodes.length === 0) return
     try {
@@ -76,6 +117,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   scrollContainer.value?.removeEventListener('scroll', onPreviewScroll)
+  revokeBlobUrls()
 })
 </script>
 
