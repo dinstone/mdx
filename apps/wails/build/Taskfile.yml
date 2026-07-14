@@ -67,6 +67,12 @@ tasks:
     cmds:
       - yarn install
 
+  sync:version:
+    summary: Sync version from root package.json to build/config.yml
+    internal: true
+    cmds:
+      - node -e 'var f=require("fs");var v=JSON.parse(f.readFileSync("../../package.json","utf8")).version;var c=f.readFileSync("build/config.yml","utf8").replace(/^(  version: ")[^"]+(")/m,"$1"+v+"$2");f.writeFileSync("build/config.yml",c)'
+
   build:frontend:
     label: build:frontend (DEV={{.DEV}} RUNNER={{.PACKAGE_MANAGER}})
     summary: Build the frontend project
@@ -78,6 +84,7 @@ tasks:
     generates:
       - dist/**/*
     deps:
+      - task: sync:version
       - task: install:frontend:deps
       - task: generate:bindings
         vars:
