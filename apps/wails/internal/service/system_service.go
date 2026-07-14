@@ -6,7 +6,15 @@ import (
 	"runtime"
 )
 
-const appVersion = "0.0.1"
+// appVersion is set via -ldflags "-X 'mdx/internal/service.appVersion=x.y.z'" at build
+// time. When empty (e.g. dev runs), it falls back to "0.0.0".
+var appVersion string
+
+func init() {
+	if appVersion == "" {
+		appVersion = "0.0.0"
+	}
+}
 
 // SystemService exposes OS-level helpers: platform info, external links,
 // and file-manager reveal.

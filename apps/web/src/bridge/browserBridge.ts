@@ -461,11 +461,11 @@ export class BrowserBridge implements IServiceBridge {
     if (ua.includes('Win')) os = 'windows'
     else if (ua.includes('Mac')) os = 'darwin'
     else if (ua.includes('Linux')) os = 'linux'
-    return { os, arch: 'web', version: '0.0.1' }
+    return { os, arch: 'web', version: __APP_VERSION__ }
   }
 
   async getAppVersion(): Promise<string> {
-    return '0.0.1'
+    return __APP_VERSION__
   }
 
   async openExternal(url: string): Promise<void> {

@@ -1,5 +1,6 @@
 {
   "name": "mdx",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @mdx/web dev",
