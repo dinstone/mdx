@@ -94,6 +94,13 @@ export const useEditorStore = defineStore('editor', () => {
     return processHtml(mdHtml, currentTheme.value.css)
   })
 
+  /** Renders raw markdown → WeChat-compatible HTML with pseudo-elements inlined. */
+  const wechatHtml = computed(() => {
+    if (!rawContent.value) return ''
+    const mdHtml = parser.render(rawContent.value)
+    return processHtml(mdHtml, currentTheme.value.css, true, true)
+  })
+
   // ---- internal helpers ----
 
   /** Pick a theme: prefer value-based lookup, then name-based, then default. */
@@ -207,6 +214,7 @@ export const useEditorStore = defineStore('editor', () => {
     isEmpty,
     fileName,
     renderedHtml,
+    wechatHtml,
     currentThemeName,
     // actions
     loadFile,

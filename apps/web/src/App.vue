@@ -14,6 +14,7 @@ import PreviewPanel from './components/PreviewPanel.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
+import { copyToWechat } from './services/wechatCopyService'
 
 const isDesktop = computed(() => getBridge().isDesktop)
 const workspace = useWorkspaceStore()
@@ -200,7 +201,11 @@ async function copyHtml() {
 }
 
 async function copyWechat() {
-  await copyHtml()
+  if (!editor.wechatHtml) return
+  const copied = await copyToWechat(editor.wechatHtml)
+  if (!copied) {
+    console.error('复制到公众号失败')
+  }
 }
 
 function openStorage() {
