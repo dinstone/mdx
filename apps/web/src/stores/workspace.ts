@@ -102,6 +102,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     saveRecentWorkspaces()
   }
 
+  /** 从最近工作区列表中移除，仅清理记录，不删除实际文件夹 */
+  function removeRecentWorkspace(ws: IWorkspace) {
+    recentWorkspaces.value = recentWorkspaces.value.filter((w) => w.path !== ws.path)
+    saveRecentWorkspaces()
+  }
+
   /** Find a workspace by path in recents, or create a new one. */
   function resolveWorkspace(dirPath: string): IWorkspace {
     return (
@@ -273,6 +279,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     // utility
     resolveWorkspace,
     addRecentWorkspace,
+    removeRecentWorkspace,
     loadRecentWorkspaces,
   }
 })

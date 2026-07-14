@@ -13,10 +13,16 @@ const emit = defineEmits<{
   close: []
   select: [ws: IWorkspace]
   openFolder: []
+  remove: [ws: IWorkspace]
 }>()
 
 function onSelect(ws: IWorkspace) {
   emit('select', ws)
+}
+
+function onRemove(ws: IWorkspace, e: MouseEvent) {
+  e.stopPropagation()
+  emit('remove', ws)
 }
 
 function onOpenFolder() {
@@ -91,6 +97,18 @@ onUnmounted(() => {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
             <span class="workspace-picker-name">{{ ws.name }}</span>
+            <button
+              v-if="ws.path !== currentPath"
+              class="workspace-picker-remove"
+              aria-label="移除工作区"
+              :title="`移除 ${ws.name}`"
+              @click="onRemove(ws, $event)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
             <svg
               v-if="ws.path === currentPath"
               class="workspace-picker-check"
@@ -220,6 +238,32 @@ onUnmounted(() => {
 .workspace-picker-check {
   color: var(--accent-primary);
   flex-shrink: 0;
+}
+
+.workspace-picker-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.workspace-picker-item:hover .workspace-picker-remove {
+  opacity: 1;
+}
+
+.workspace-picker-remove:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
 }
 
 .workspace-picker-footer {

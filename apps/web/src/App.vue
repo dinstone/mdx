@@ -123,7 +123,10 @@ function onOpenWorkspaceFolder() {
   showWorkspacePicker.value = false
   pickDesktopFolder()
 }
-async function createFile(dirPath?: string) {
+function onRemoveWorkspace(ws: IWorkspace) {
+  // 仅从最近列表中移除，不删除实际文件夹
+  workspace.removeRecentWorkspace(ws)
+}async function createFile(dirPath?: string) {
   const targetDir = dirPath || workspace.rootPath
   if (!targetDir) return
   await workspace.createFile(targetDir, `note-${Date.now()}.md`)
@@ -486,6 +489,7 @@ const workspaceGridColumns = computed(() => {
       @close="showWorkspacePicker = false"
       @select="onSelectWorkspace"
       @open-folder="onOpenWorkspaceFolder"
+      @remove="onRemoveWorkspace"
     />
     <RenameDialog
       :open="showRenameDialog"
