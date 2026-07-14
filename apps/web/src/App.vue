@@ -15,6 +15,7 @@ import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
 import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
+import { resetImageStorage } from './services/imageStorage'
 import { useToast } from './composables/useToast'
 import ToastMessage from './components/ToastMessage.vue'
 
@@ -83,6 +84,12 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// 工作区切换时重置图片存储后端（虚拟 ↔ 真实目录）
+watch(
+  () => workspace.current,
+  () => resetImageStorage(),
 )
 
 function toggleDark() {

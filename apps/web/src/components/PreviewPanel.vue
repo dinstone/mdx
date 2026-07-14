@@ -43,6 +43,9 @@ async function resolveImageUrls() {
   if (imgs.length === 0) return
 
   const storage = await getImageStorage()
+  // getImageStorage 是异步的，期间组件可能已销毁
+  if (!container.value) return
+
   const imgArray = Array.from(imgs) as HTMLImageElement[]
   for (const img of imgArray) {
     const hash = img.src.replace('img://', '')
@@ -67,6 +70,9 @@ watch(
 
     // Resolve img:// URLs
     await resolveImageUrls()
+
+    // resolveImageUrls 是异步的，期间组件可能已销毁
+    if (!container.value) return
 
     // Mermaid rendering
     const nodes = container.value.querySelectorAll('.mermaid')

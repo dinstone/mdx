@@ -5,7 +5,8 @@
  * 桌面模式   → Go ImageService（操作 {workspace}/.mdx-images/）
  */
 
-import { getBridge } from '../bridge'
+import { getBridge, getBrowserBridge } from '../bridge'
+import { useWorkspaceStore } from '../stores/workspace'
 
 /** 存储中的图片记录（不含 Blob，用于 list 接口） */
 export interface ImageMeta {
@@ -39,15 +40,36 @@ export interface ImageStorage {
 
 let _storage: ImageStorage | null = null
 
+/** 工作区切换时调用，确保下次 getImageStorage() 返回正确的后端 */
+export function resetImageStorage() {
+  _storage = null
+}
+
+/** 判断当前是否为虚拟工作区（/Temp 等），是则强制走 IndexedDB */
+function isCurrentWorkspaceVirtual(): boolean {
+  try {
+    return useWorkspaceStore().current?.kind === 'virtual'
+  } catch {
+    // workspace store 暂不可用时退回检查 bridge：浏览器模式下 isDesktop=false
+    return !getBridge().isDesktop
+  }
+}
+
 /** 获取当前环境的 ImageStorage 单例 */
 export async function getImageStorage(): Promise<ImageStorage> {
+  // 缓存命中但工作区类型变了 → 重建
+  if (_storage && isCurrentWorkspaceVirtual() !== _storage.constructor.name.startsWith('Idb')) {
+    _storage = null
+  }
   if (_storage) return _storage
-  if (getBridge().isDesktop) {
+
+  // 桌面模式 + 真实文件系统工作区 → Go ImageService
+  if (getBridge().isDesktop && !isCurrentWorkspaceVirtual()) {
     const { DesktopImageStorage } = await import('./imageStorage/desktop')
     _storage = new DesktopImageStorage()
     return _storage
   }
-  // 浏览器模式
+  // 浏览器模式 或 虚拟工作区（/Temp）→ IndexedDB
   const { IdbImageStorage } = await import('./imageStorage/idb')
   _storage = new IdbImageStorage()
   return _storage

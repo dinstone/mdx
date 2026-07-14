@@ -9,7 +9,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
-import { getBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
+import { getBridge, getBrowserBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
 import { defaultTheme, findThemeByName, findThemeByValue } from '../config/themes'
 import type { ThemeOption } from '../config/themes'
@@ -65,7 +65,13 @@ function buildFmBlock(fields: Record<string, string>): string {
 
 export const useEditorStore = defineStore('editor', () => {
   /** Resolve bridge on every access — DesktopBridge may not be ready at store-creation time. */
+  /** 根据当前工作区类型选择正确的桥接层：
+   *   - 虚拟工作区（/Temp）→ BrowserBridge（IndexedDB）
+   *   - 真实目录工作区 → DesktopBridge（Go 后端，桌面模式）或 BrowserBridge（浏览器模式） */
   function bridge(): IServiceBridge {
+    if (workspace.current?.kind === 'virtual') {
+      return getBrowserBridge()
+    }
     return getBridge()
   }
   const workspace = useWorkspaceStore()
