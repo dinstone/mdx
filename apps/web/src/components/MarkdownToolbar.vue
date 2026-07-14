@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SyntaxHelpPopover from './SyntaxHelpPopover.vue'
+
 const emit = defineEmits<{
   bold: []
   italic: []
@@ -13,7 +15,6 @@ const emit = defineEmits<{
   image: []
   table: []
   search: []
-  help: []
 }>()
 
 interface ToolItem {
@@ -62,9 +63,7 @@ const tools: ToolItem[] = [
       <span v-else-if="tool.key === 'table'" class="tool-icon">▦</span>
       <span v-else-if="tool.key === 'search'" class="tool-icon">🔍</span>
     </button>
-    <button class="toolbar-btn" title="帮助" @click="$emit('help')">
-      <span class="tool-icon">?</span>
-    </button>
+    <SyntaxHelpPopover />
   </div>
 </template>
 

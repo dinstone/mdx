@@ -40,7 +40,7 @@ function toggleHeader(view: EditorView, level: number): boolean {
   const match = lineText.match(/^(#{1,6})\s/)
   const currentLevel = match ? match[1].length : 0
 
-  let changes
+  let changes: { from: number; to: number; insert: string }
   if (currentLevel === level) {
     changes = {
       from: line.from,

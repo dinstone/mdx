@@ -222,7 +222,6 @@ onMounted(() => {
       @image="insertSnippet('![', '](url)')"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
       @search="showSearch = true"
-      @help="() => {}"
     />
 
     <SearchPanel v-if="showSearch && currentView" :view="currentView" @close="showSearch = false" />
