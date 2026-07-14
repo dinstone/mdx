@@ -15,10 +15,13 @@ import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { themeOptions } from './config/themes'
 import { copyToWechat } from './services/wechatCopyService'
+import { useToast } from './composables/useToast'
+import ToastMessage from './components/ToastMessage.vue'
 
 const isDesktop = computed(() => getBridge().isDesktop)
 const workspace = useWorkspaceStore()
 const editor = useEditorStore()
+const toast = useToast()
 
 const showWorkspacePicker = ref(false)
 const workspacePickerList = computed(() => {
@@ -190,21 +193,33 @@ async function copyHtml() {
   if (!editor.renderedHtml) return
   try {
     await navigator.clipboard.writeText(editor.renderedHtml)
+    toast.success('已复制 HTML')
   } catch {
     const textarea = document.createElement('textarea')
     textarea.value = editor.renderedHtml
     document.body.appendChild(textarea)
     textarea.select()
-    document.execCommand('copy')
+    const ok = document.execCommand('copy')
     document.body.removeChild(textarea)
+    if (ok) {
+      toast.success('已复制 HTML')
+    } else {
+      toast.error('复制 HTML 失败')
+    }
   }
 }
 
 async function copyWechat() {
   if (!editor.wechatHtml) return
-  const copied = await copyToWechat(editor.wechatHtml)
-  if (!copied) {
-    console.error('复制到公众号失败')
+  try {
+    const copied = await copyToWechat(editor.wechatHtml)
+    if (copied) {
+      toast.success('已复制，可以直接粘贴至微信公众号')
+    } else {
+      toast.error('复制到公众号失败')
+    }
+  } catch (e: any) {
+    toast.error(`复制失败: ${e?.message || '未知错误'}`)
   }
 }
 
@@ -443,6 +458,7 @@ const workspaceGridColumns = computed(() => {
       @close="showRenameDialog = false"
       @confirm="confirmRename"
     />
+    <ToastMessage />
   </div>
 </template>
 
