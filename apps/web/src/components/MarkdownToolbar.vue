@@ -68,27 +68,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="md-toolbar">
-    <button
-      v-for="tool in tools"
-      :key="tool.key"
-      class="toolbar-btn"
-      :title="tool.title"
-      @click="tool.handler"
-    >
-      <b v-if="tool.key === 'bold'">B</b>
-      <i v-else-if="tool.key === 'italic'">I</i>
-      <u v-else-if="tool.key === 'underline'">U</u>
-      <s v-else-if="tool.key === 'strikethrough'">S</s>
-      <span v-else-if="tool.key === 'unorderedList'" class="tool-icon">•≡</span>
-      <span v-else-if="tool.key === 'orderedList'" class="tool-icon">1≡</span>
-      <span v-else-if="tool.key === 'code'" class="tool-icon">&lt;/&gt;</span>
-      <span v-else-if="tool.key === 'quote'" class="tool-icon">❝</span>
-      <span v-else-if="tool.key === 'link'" class="tool-icon">🔗</span>
-      <span v-else-if="tool.key === 'image'" class="tool-icon">🖼</span>
-      <span v-else-if="tool.key === 'table'" class="tool-icon">▦</span>
-      <span v-else-if="tool.key === 'search'" class="tool-icon">🔍</span>
-    </button>
-
     <!-- 标题下拉 -->
     <div class="toolbar-dropdown-container" ref="headingMenuRef">
       <button
@@ -130,6 +109,27 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+
+    <button
+      v-for="tool in tools"
+      :key="tool.key"
+      class="toolbar-btn"
+      :title="tool.title"
+      @click="tool.handler"
+    >
+      <b v-if="tool.key === 'bold'">B</b>
+      <i v-else-if="tool.key === 'italic'">I</i>
+      <u v-else-if="tool.key === 'underline'">U</u>
+      <s v-else-if="tool.key === 'strikethrough'">S</s>
+      <span v-else-if="tool.key === 'unorderedList'" class="tool-icon">•≡</span>
+      <span v-else-if="tool.key === 'orderedList'" class="tool-icon">1≡</span>
+      <span v-else-if="tool.key === 'code'" class="tool-icon">&lt;/&gt;</span>
+      <span v-else-if="tool.key === 'quote'" class="tool-icon">❝</span>
+      <span v-else-if="tool.key === 'link'" class="tool-icon">🔗</span>
+      <span v-else-if="tool.key === 'image'" class="tool-icon">🖼</span>
+      <span v-else-if="tool.key === 'table'" class="tool-icon">▦</span>
+      <span v-else-if="tool.key === 'search'" class="tool-icon">🔍</span>
+    </button>
 
     <SyntaxHelpPopover />
   </div>
