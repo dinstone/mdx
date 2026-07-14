@@ -213,7 +213,7 @@ onMounted(() => {
       @italic="insertSnippet('*', '*')"
       @underline="insertSnippet('<u>', '</u>')"
       @strikethrough="insertSnippet('~~', '~~')"
-      @heading="insertSnippet('## ', '')"
+      @heading="(level: number) => insertSnippet('#'.repeat(level) + ' ', '')"
       @unordered-list="insertSnippet('- ', '')"
       @ordered-list="insertSnippet('1. ', '')"
       @code="insertSnippet('`', '`')"
