@@ -12,6 +12,7 @@ const emit = defineEmits<{
   link: []
   image: []
   table: []
+  search: []
   help: []
 }>()
 
@@ -34,6 +35,7 @@ const tools: ToolItem[] = [
   { key: 'link', title: '链接', handler: () => emit('link') },
   { key: 'image', title: '图片', handler: () => emit('image') },
   { key: 'table', title: '表格', handler: () => emit('table') },
+  { key: 'search', title: '查找和替换 (Command+F)', handler: () => emit('search') },
 ]
 </script>
 
@@ -58,6 +60,7 @@ const tools: ToolItem[] = [
       <span v-else-if="tool.key === 'link'" class="tool-icon">🔗</span>
       <span v-else-if="tool.key === 'image'" class="tool-icon">🖼</span>
       <span v-else-if="tool.key === 'table'" class="tool-icon">▦</span>
+      <span v-else-if="tool.key === 'search'" class="tool-icon">🔍</span>
     </button>
     <button class="toolbar-btn" title="帮助" @click="$emit('help')">
       <span class="tool-icon">?</span>

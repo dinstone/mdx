@@ -7,6 +7,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import MarkdownToolbar from './MarkdownToolbar.vue'
+import SearchPanel from './SearchPanel.vue'
 
 const props = defineProps<{
   modelValue: string
@@ -24,6 +25,8 @@ const emit = defineEmits<{
 const editorContainer = ref<HTMLDivElement>()
 const viewRef = ref<EditorView | null>(null)
 const isProgrammaticScroll = ref(false)
+const showSearch = ref(false)
+const currentView = computed(() => viewRef.value as EditorView | null)
 
 function getScrollPercent(): number {
   const view = viewRef.value
@@ -98,6 +101,14 @@ const saveStatusText = computed(() => {
 
 onMounted(() => {
   if (!editorContainer.value) return
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      e.preventDefault()
+      showSearch.value = true
+    }
+  }
+  window.addEventListener('keydown', handleKeyDown)
 
   const saveKeymap = keymap.of([
     {
@@ -180,6 +191,7 @@ onMounted(() => {
   viewRef.value = view
 
   onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeyDown)
     view.scrollDOM.removeEventListener('scroll', handleScroll)
     view.destroy()
     viewRef.value = null
@@ -207,8 +219,11 @@ onMounted(() => {
       @link="insertSnippet('[', '](url)')"
       @image="insertSnippet('![', '](url)')"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
+      @search="showSearch = true"
       @help="() => {}"
     />
+
+    <SearchPanel v-if="showSearch && currentView" :view="currentView" @close="showSearch = false" />
 
     <div class="editor-body-wrapper">
       <div ref="editorContainer" class="cm-container" />
