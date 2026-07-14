@@ -6,6 +6,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
+import { customKeymap } from './editorShortcuts'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 import SearchPanel from './SearchPanel.vue'
 
@@ -128,6 +129,7 @@ onMounted(() => {
     doc: props.modelValue,
     extensions: [
       minimalSetup,
+      customKeymap,
       saveKeymap,
       markdown(),
       syntaxHighlighting(headingHighlight),
