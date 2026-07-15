@@ -388,7 +388,7 @@ async function handleImportFile(e: Event) {
               class="ts-name-input"
               :disabled="isBuiltIn"
               placeholder="输入主题名称..."
-              @focus="$event.target.select()"
+              @focus="($event.target as HTMLInputElement).select()"
             />
           </div>
 

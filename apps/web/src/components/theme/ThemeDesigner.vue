@@ -55,8 +55,8 @@ const primaryColorTiles = computed<TileOption[]>(() =>
   primaryColorOptions.map((o) => ({ label: o.label, value: o.value, color: o.value })),
 )
 
-function patch<K extends keyof DesignerVariables>(key: K, value: DesignerVariables[K]) {
-  emit('update:variables', { ...props.variables, [key]: value })
+function patch<K extends keyof DesignerVariables>(key: K, value: DesignerVariables[K] | string | number) {
+  emit('update:variables', { ...props.variables, [key]: value as DesignerVariables[K] })
 }
 
 function updateListMarkerColor(color: string) {
