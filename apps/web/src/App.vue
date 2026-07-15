@@ -393,7 +393,6 @@ const workspaceGridColumns = computed(() => {
       @toggle-dark="toggleDark"
       @toggle-sidebar="toggleSidebar"
       @open-storage="openStorage"
-      @open-image-host="openImageHost"
       @open-theme="openTheme"
       @copy-html="copyHtml"
       @copy-wechat="copyWechat"
