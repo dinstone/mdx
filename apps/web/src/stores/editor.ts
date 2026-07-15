@@ -11,8 +11,7 @@ import { ref, computed, watch } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
 import { getBridge, getBrowserBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
-import { defaultTheme, findThemeByName, findThemeByValue } from '../config/themes'
-import type { ThemeOption } from '../config/themes'
+import { useThemeStore } from './themes'
 
 const parser = createMarkdownParser()
 
@@ -75,6 +74,7 @@ export const useEditorStore = defineStore('editor', () => {
     return getBridge()
   }
   const workspace = useWorkspaceStore()
+  const theme = useThemeStore()
 
   // ---- state ----
   const filePath = ref('')
@@ -86,41 +86,42 @@ export const useEditorStore = defineStore('editor', () => {
   const isModified = ref(false)
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const currentTheme = ref<ThemeOption>(defaultTheme)
 
   // ---- getters ----
   const isEmpty = computed(() => rawContent.value.trim() === '')
   const fileName = computed(() => filePath.value.split('/').pop() || 'Untitled.md')
-  const currentThemeName = computed(() => currentTheme.value.name)
+  const currentThemeName = computed(() => theme.currentTheme.name)
 
   /** Renders raw markdown → themed HTML. */
   const renderedHtml = computed(() => {
     if (!rawContent.value) return ''
     const mdHtml = parser.render(rawContent.value)
-    return processHtml(mdHtml, currentTheme.value.css)
+    return processHtml(mdHtml, theme.currentCSS)
   })
 
   /** Renders raw markdown → WeChat-compatible HTML with pseudo-elements inlined. */
   const wechatHtml = computed(() => {
     if (!rawContent.value) return ''
     const mdHtml = parser.render(rawContent.value)
-    return processHtml(mdHtml, currentTheme.value.css, true, true)
+    return processHtml(mdHtml, theme.currentCSS, true, true)
   })
 
   // ---- internal helpers ----
 
-  /** Pick a theme: prefer value-based lookup, then name-based, then default. */
-  function resolveTheme(meta: FrontmatterMeta): ThemeOption {
+  /** Pick a theme ID: prefer type-based (id), then name-based, then store current. */
+  function resolveThemeId(meta: FrontmatterMeta): string {
+    // 1) themeType is the canonical ID (for both built-in and custom themes)
     if (meta.themeType) {
-      const t = findThemeByValue(meta.themeType)
-      if (t.name !== '默认主题' || meta.themeType === defaultTheme.value) return t
+      const byId = theme.allThemes.find((t) => t.id === meta.themeType)
+      if (byId) return byId.id
     }
-    if (meta.themeName && meta.themeName !== '默认主题') {
-      return findThemeByName(meta.themeName)
+    // 2) fallback to name match (backward compat with old frontmatter)
+    if (meta.themeName) {
+      const byName = theme.allThemes.find((t) => t.name === meta.themeName)
+      if (byName) return byName.id
     }
-    const lastTheme = localStorage.getItem('mdx-last-theme')
-    if (lastTheme) return findThemeByName(lastTheme)
-    return defaultTheme
+    // 3) use currently selected theme
+    return theme.currentThemeId
   }
 
   // ---- actions ----
@@ -139,7 +140,7 @@ export const useEditorStore = defineStore('editor', () => {
       fmBlock.value = block
 
       isModified.value = false
-      currentTheme.value = resolveTheme(result.meta)
+      theme.selectTheme(resolveThemeId(result.meta))
       workspace.setActiveFile(absPath)
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to load file'
@@ -169,34 +170,32 @@ export const useEditorStore = defineStore('editor', () => {
     isModified.value = true
   }
 
-  function setTheme(theme: ThemeOption) {
-    currentTheme.value = theme
-    meta.value.themeName = theme.name
-    meta.value.themeType = theme.value
+  function setTheme(themeId: string) {
+    theme.selectTheme(themeId)
+    const t = theme.currentTheme
+    meta.value.themeName = t.name
+    meta.value.themeType = t.id
 
     // Update the frontmatter block — keep existing fields, only touch themeType/themeName
     const existingFields = parseFmFields(fmBlock.value)
-    existingFields['themeType'] = theme.value
-    existingFields['themeName'] = theme.name
+    existingFields['themeType'] = t.id
+    existingFields['themeName'] = t.name
     fmBlock.value = buildFmBlock(existingFields)
 
-    // Also store as global preference fallback in localStorage
-    localStorage.setItem('mdx-last-theme', theme.name)
     isModified.value = true
   }
 
   function setThemeByName(name: string) {
-    const theme = findThemeByName(name)
-    setTheme(theme)
+    const t = theme.allThemes.find((x) => x.name === name)
+    if (t) setTheme(t.id)
   }
 
   function reset() {
     filePath.value = ''
     rawContent.value = ''
     fmBlock.value = ''
-    meta.value = { themeName: defaultTheme.name }
+    meta.value = { themeName: theme.currentTheme.name }
     isModified.value = false
-    currentTheme.value = defaultTheme
     error.value = null
   }
 

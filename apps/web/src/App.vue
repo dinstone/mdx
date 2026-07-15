@@ -5,6 +5,7 @@ import type { FileEntry } from './bridge'
 import { useWorkspaceStore } from './stores/workspace'
 import { VirtualWorkspace, type IWorkspace } from './stores/workspace-types'
 import { useEditorStore } from './stores/editor'
+import { useThemeStore } from './stores/themes'
 import AppHeader from './components/AppHeader.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
 import MovePicker from './components/MovePicker.vue'
@@ -13,7 +14,6 @@ import MarkdownEditor from './components/MarkdownEditor.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
-import { themeOptions } from './config/themes'
 import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
 import { resetImageStorage } from './services/imageStorage'
 import { useToast } from './composables/useToast'
@@ -22,6 +22,7 @@ import ToastMessage from './components/ToastMessage.vue'
 const isDesktop = computed(() => getBridge().isDesktop)
 const workspace = useWorkspaceStore()
 const editor = useEditorStore()
+const themeStore = useThemeStore()
 const toast = useToast()
 
 const showWorkspacePicker = ref(false)
@@ -278,13 +279,15 @@ function closeTheme() {
   showThemePanel.value = false
 }
 
-function selectTheme(name: string) {
-  editor.setThemeByName(name)
+function selectTheme(id: string) {
+  editor.setTheme(id)
 }
 
 const showThemePanel = ref(false)
+
+function closeDesigner() {}
+
 const showSidebar = ref(true)
-const themeSelectorOptions = themeOptions.map((t) => ({ name: t.name, value: t.name }))
 
 // -- Sidebar width drag --
 const sidebarWidth = ref(280)
@@ -468,8 +471,7 @@ const workspaceGridColumns = computed(() => {
     </main>
     <ThemeSelector
       :open="showThemePanel"
-      :options="themeSelectorOptions"
-      :current="editor.currentThemeName"
+      :current-id="themeStore.currentThemeId"
       @select="selectTheme"
       @close="closeTheme"
     />
