@@ -24,6 +24,7 @@ const emit = defineEmits<{
   expandDir: [dirPath: string]
 }>()
 
+const appVersion = __APP_VERSION__
 const filter = ref('')
 const showSortMenu = ref(false)
 const sortMode = ref<'recent' | 'name-asc'>('recent')
@@ -190,7 +191,7 @@ function setSort(mode: 'recent' | 'name-asc') {
         </svg>
         <span class="fs-brand-text">MDX</span>
       </div>
-      <span class="fs-version">v0.0.1</span>
+      <span class="fs-version">v{{ appVersion }}</span>
     </div>
   </aside>
 </template>
