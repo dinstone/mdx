@@ -2,8 +2,9 @@
 /**
  * 主题实时预览 — iframe 沙箱隔离渲染
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
+import { getImageStorage } from '../../services/imageStorage'
 
 const props = defineProps<{
   css: string
@@ -15,7 +16,7 @@ const iframeRef = ref<HTMLIFrameElement | null>(null)
 // 预览用示例 Markdown
 const PREVIEW_MARKDOWN = `# 一级标题示例
 
-这是一段**加粗文本**、*斜体文本*、++下划线文本++、~~删除线文本~~、==高亮文本==和 [链接示例](https://github.com)。
+这是一段**加粗文本**、*斜体文本*、++下划线文本++、~~删除线文本~~、==高亮文本==和 [链接示例](https://github)。
 
 正文段落通常需要设置行高和间距，以保证阅读体验。微信排版对样式的要求较高，一个好的主题能让文章脱颖而出。
 
@@ -82,7 +83,49 @@ const shellDoc = `
 </html>
 `
 
-function updateIframe() {
+// 当前渲染中已使用的 blob URL（组件卸载时释放）
+const activeBlobUrls = ref<string[]>([])
+const nextBlobUrls = ref<string[]>([])
+let renderGeneration = 0
+
+const IMG_HASH_RE = /img:\/\/([a-f0-9]{8})/g
+
+function revokeBlobUrls(urls: string[]) {
+  for (const url of urls) {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/** 把 HTML 中的 img://hash 替换为当前存储的 blob URL */
+async function resolveImageUrls(html: string): Promise<string> {
+  nextBlobUrls.value = []
+  const hashes = new Set<string>()
+  let m: RegExpExecArray | null
+  while ((m = IMG_HASH_RE.exec(html)) !== null) {
+    hashes.add(m[1])
+  }
+  if (hashes.size === 0) return html
+
+  const storage = await getImageStorage()
+  const urlMap = new Map<string, string>()
+  for (const hash of hashes) {
+    try {
+      const blob = await storage.load(hash)
+      if (blob) {
+        const url = URL.createObjectURL(blob)
+        nextBlobUrls.value.push(url)
+        urlMap.set(hash, url)
+      }
+    } catch {
+      // 图片不存在或读取失败，保留原 img:// URL
+    }
+  }
+  if (urlMap.size === 0) return html
+
+  return html.replace(IMG_HASH_RE, (match, hash) => urlMap.get(hash) ?? match)
+}
+
+async function updateIframe() {
   const iframe = iframeRef.value
   if (!iframe) return
 
@@ -93,30 +136,49 @@ function updateIframe() {
   const root = doc.getElementById('preview-root')
   if (!themeStyle || !root) return
 
+  const gen = ++renderGeneration
   themeStyle.textContent = props.css
   const mdHtml = parser.render(props.markdown ?? PREVIEW_MARKDOWN)
   const html = processHtml(mdHtml, props.css, true)
-  root.innerHTML = html
+  const resolvedHtml = await resolveImageUrls(html)
+
+  // 如果期间触发了新渲染，丢弃旧结果，避免旧 blob URL 覆盖新内容
+  if (gen !== renderGeneration) return
+
+  revokeBlobUrls(activeBlobUrls.value)
+  activeBlobUrls.value = nextBlobUrls.value
+  root.innerHTML = resolvedHtml
+}
+
+function safeUpdateIframe() {
+  updateIframe().catch((err) => {
+    console.error('[ThemeLivePreview] update failed:', err)
+  })
 }
 
 watch(() => props.css, () => {
-  updateIframe()
+  safeUpdateIframe()
 })
 
 watch(() => props.markdown, () => {
-  updateIframe()
+  safeUpdateIframe()
 })
 
 onMounted(() => {
   const iframe = iframeRef.value
   if (!iframe) return
   // Always listen: srcDoc may not have loaded yet (about:blank readyState=complete is NOT our content)
-  iframe.addEventListener('load', () => updateIframe(), { once: true })
+  iframe.addEventListener('load', () => safeUpdateIframe(), { once: true })
   // Edge case: srcDoc already loaded before this hook ran
   const doc = iframe.contentDocument
   if (doc && doc.readyState === 'complete' && doc.getElementById('preview-root')) {
-    updateIframe()
+    safeUpdateIframe()
   }
+})
+
+onBeforeUnmount(() => {
+  revokeBlobUrls(activeBlobUrls.value)
+  revokeBlobUrls(nextBlobUrls.value)
 })
 </script>
 

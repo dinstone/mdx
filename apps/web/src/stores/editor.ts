@@ -7,7 +7,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
 import { getBridge, getBrowserBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
@@ -87,6 +87,22 @@ export const useEditorStore = defineStore('editor', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  /**
+   * 抑制程序化同步（loadFile 触发 CM 的 dispatch → updateContent）时
+   * 错误地将 isModified 置为 true。loadFile 期间为 true，nextTick 后恢复。
+   */
+  const _syncSuppress = ref(false)
+
+  /**
+   * 未保存编辑缓存：切文件时保存当前编辑内容，切回时恢复，
+   * 避免用户未保存的编辑丢失。
+   */
+  const unsavedCache = new Map<string, {
+    content: string
+    fmBlock: string
+    meta: FrontmatterMeta
+  }>()
+
   // ---- getters ----
   const isEmpty = computed(() => rawContent.value.trim() === '')
   const fileName = computed(() => filePath.value.split('/').pop() || 'Untitled.md')
@@ -127,27 +143,55 @@ export const useEditorStore = defineStore('editor', () => {
   // ---- actions ----
 
   async function loadFile(absPath: string) {
+    // 切文件前，把当前未保存的编辑缓存起来
+    if (filePath.value && isModified.value) {
+      unsavedCache.set(filePath.value, {
+        content: rawContent.value,
+        fmBlock: fmBlock.value,
+        meta: { ...meta.value },
+      })
+    }
+
+    // 如果是切回之前已编辑过的文件，从缓存恢复
+    const cached = unsavedCache.get(absPath)
+
+    _syncSuppress.value = true
     loading.value = true
     error.value = null
     try {
-      const result: ReadResult = await bridge().readFile(absPath)
-      filePath.value = result.filePath
-      meta.value = result.meta
+      if (cached) {
+        // 从缓存恢复未保存的编辑
+        filePath.value = absPath
+        meta.value = { ...cached.meta }
+        rawContent.value = cached.content
+        fmBlock.value = cached.fmBlock
+        isModified.value = true // 保持之前的未保存状态
+        theme.selectTheme(resolveThemeId(cached.meta))
+        workspace.setActiveFile(absPath)
+      } else {
+        const result: ReadResult = await bridge().readFile(absPath)
+        filePath.value = result.filePath
+        meta.value = result.meta
 
-      // Strip frontmatter from the editor body
-      const { body, fmBlock: block } = stripFrontmatter(result.content)
-      rawContent.value = body
-      fmBlock.value = block
+        // Strip frontmatter from the editor body
+        const { body, fmBlock: block } = stripFrontmatter(result.content)
+        rawContent.value = body
+        fmBlock.value = block
 
-      isModified.value = false
-      theme.selectTheme(resolveThemeId(result.meta))
-      workspace.setActiveFile(absPath)
+        isModified.value = false
+        theme.selectTheme(resolveThemeId(result.meta))
+        workspace.setActiveFile(absPath)
+      }
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to load file'
       filePath.value = absPath
       rawContent.value = ''
     } finally {
       loading.value = false
+      // nextTick 后 CM 的 dispatch → updateContent 已完成，解除抑制
+      nextTick(() => {
+        _syncSuppress.value = false
+      })
     }
   }
 
@@ -159,6 +203,8 @@ export const useEditorStore = defineStore('editor', () => {
       const fullContent = fmBlock.value + rawContent.value
       await bridge().writeFile(filePath.value, fullContent)
       isModified.value = false
+      // 保存成功后清除该文件的缓存
+      unsavedCache.delete(filePath.value)
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to save file'
       throw e
@@ -167,7 +213,9 @@ export const useEditorStore = defineStore('editor', () => {
 
   function updateContent(content: string) {
     rawContent.value = content
-    isModified.value = true
+    if (!_syncSuppress.value) {
+      isModified.value = true
+    }
   }
 
   function setTheme(themeId: string) {
@@ -197,6 +245,7 @@ export const useEditorStore = defineStore('editor', () => {
     meta.value = { themeName: theme.currentTheme.name }
     isModified.value = false
     error.value = null
+    unsavedCache.clear()
   }
 
   // Auto-load when workspace.activeFileId changes
