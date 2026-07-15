@@ -68,7 +68,7 @@ tasks:
       - yarn install
 
   sync:version:
-    summary: Sync version from root package.json to build/config.yml
+    summary: Sync version from root package.json to build/config.yml and update assets
     internal: true
     vars:
       VERSION:
@@ -76,6 +76,7 @@ tasks:
     cmds:
       # macOS sed: -i '' / Linux sed: -i
       - "sed -i.bak 's/^  version: \"[^\"]*\"/  version: \"{{.VERSION}}\"/' build/config.yml && rm -f build/config.yml.bak"
+      - task: update:build-assets
 
   build:frontend:
     label: build:frontend (DEV={{.DEV}} RUNNER={{.PACKAGE_MANAGER}})
@@ -100,7 +101,8 @@ tasks:
       - task: frontend:run
         vars:
           SCRIPT: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
-      # Copy built dist to frontend/dist for Go embed
+      # Clean previous dist then copy for Go embed (avoid accumulating stale hashed files)
+      - rm -rf ../wails/frontend/dist
       - cp -r dist ../wails/frontend/
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'

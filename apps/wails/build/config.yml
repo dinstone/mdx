@@ -5,12 +5,12 @@ version: "3"
 
 # This information is used to generate the build assets.
 info:
-  companyName: "MDX" # The name of the company
-  productName: "MDX Editor" # The name of the application
-  productIdentifier: "com.mdx.editor" # The unique product identifier
+  companyName: "dinstone ltd" # The name of the company
+  productName: "MDXor" # The name of the application
+  productIdentifier: "com.dinstone.mdxor" # The unique product identifier
   description: "A Markdown editor built with Wails 3" # The application description
-  copyright: "(c) 2025, MDX" # Copyright text
-  comments: "MDX Markdown Editor" # Comments
+  copyright: "(c) 2025, dinstone ltd" # Copyright text
+  comments: "MDXor Markdown Editor" # Comments
   version: "0.5.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
