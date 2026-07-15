@@ -16,6 +16,7 @@ import ThemeLivePreview from './theme/ThemeLivePreview.vue'
 const props = defineProps<{
   open: boolean
   currentId: string
+  isDark: boolean
 }>()
 
 const emit = defineEmits<{
@@ -369,6 +370,7 @@ async function handleImportFile(e: Event) {
           :key="selectedId"
           :css="liveCSS"
           :markdown="previewMarkdown"
+          :is-dark="props.isDark"
         />
       </div>
 
@@ -702,7 +704,7 @@ async function handleImportFile(e: Event) {
 .ts-center {
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: var(--bg-page);
   overflow: hidden;
 }
 
@@ -726,10 +728,10 @@ async function handleImportFile(e: Event) {
 .ts-preview-tabs {
   display: flex;
   gap: 0;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg-primary);
 }
 
 .ts-preview-tab {

@@ -471,6 +471,7 @@ const workspaceGridColumns = computed(() => {
     <ThemeSelector
       :open="showThemePanel"
       :current-id="themeStore.currentThemeId"
+      :is-dark="isDark"
       @select="selectTheme"
       @close="closeTheme"
     />

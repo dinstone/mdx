@@ -9,6 +9,7 @@ import { getImageStorage } from '../../services/imageStorage'
 const props = defineProps<{
   css: string
   markdown?: string
+  isDark?: boolean
 }>()
 
 const iframeRef = ref<HTMLIFrameElement | null>(null)
@@ -67,14 +68,34 @@ const shellDoc = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style id="base-style">
+    :root {
+      --bg-page: #f8f9fa;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f6f8fb;
+      --bg-tertiary: #eef2f6;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-tertiary: #64748b;
+      --border-light: #e2e8f0;
+    }
+    [data-ui-theme="dark"] {
+      --bg-page: #1e1e1e;
+      --bg-primary: #252526;
+      --bg-secondary: #2d2d30;
+      --bg-tertiary: #333333;
+      --text-primary: #d4d4d4;
+      --text-secondary: #9d9d9d;
+      --text-tertiary: #6a6a6a;
+      --border-light: #404040;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       padding: 16px;
       font-size: 14px;
       line-height: 1.6;
-      background: #fff;
-      color: #333;
+      background: var(--bg-page);
+      color: var(--text-primary);
     }
   </style>
   <style id="theme-style"></style>
@@ -132,6 +153,14 @@ async function updateIframe() {
   const doc = iframe.contentDocument || iframe.contentWindow?.document
   if (!doc) return
 
+  // 同步外层暗色模式到 iframe 内的 <html>
+  const htmlEl = doc.documentElement
+  if (props.isDark) {
+    htmlEl.setAttribute('data-ui-theme', 'dark')
+  } else {
+    htmlEl.removeAttribute('data-ui-theme')
+  }
+
   const themeStyle = doc.getElementById('theme-style')
   const root = doc.getElementById('preview-root')
   if (!themeStyle || !root) return
@@ -161,6 +190,10 @@ watch(() => props.css, () => {
 })
 
 watch(() => props.markdown, () => {
+  safeUpdateIframe()
+})
+
+watch(() => props.isDark, () => {
   safeUpdateIframe()
 })
 
@@ -199,7 +232,7 @@ onBeforeUnmount(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-page);
 }
 
 .tlp-iframe {
