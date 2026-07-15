@@ -555,7 +555,7 @@ async function handleImportFile(e: Event) {
   outline: none;
 }
 .ts-search input:focus {
-  border-color: var(--accent-color, #4a6cf7);
+  border-color: var(--accent-primary, #07c160);
 }
 
 /* List */
@@ -615,7 +615,7 @@ async function handleImportFile(e: Event) {
 
 .ts-check {
   flex-shrink: 0;
-  color: var(--accent-color, #4a6cf7);
+  color: var(--accent-primary, #07c160);
 }
 
 /* Item actions */
@@ -688,9 +688,9 @@ async function handleImportFile(e: Event) {
 }
 .ts-foot-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .ts-foot-btn-primary {
-  background: var(--accent-color, #4a6cf7);
+  background: var(--accent-primary, #07c160);
   color: #fff;
-  border-color: var(--accent-color, #4a6cf7);
+  border-color: var(--accent-primary, #07c160);
 }
 .ts-foot-btn-primary:hover { opacity: 0.9; }
 
@@ -743,7 +743,7 @@ async function handleImportFile(e: Event) {
   white-space: nowrap;
 }
 .ts-preview-tab.active {
-  background: var(--accent-color, #4a6cf7);
+  background: var(--accent-primary, #07c160);
   color: #fff;
   font-weight: 600;
 }
@@ -798,7 +798,7 @@ async function handleImportFile(e: Event) {
   outline: none;
 }
 .ts-name-input:focus {
-  border-color: var(--accent-color, #4a6cf7);
+  border-color: var(--accent-primary, #07c160);
 }
 .ts-name-input:disabled {
   background: var(--bg-secondary);
@@ -850,7 +850,7 @@ async function handleImportFile(e: Event) {
   outline: none;
 }
 .ts-css-textarea:focus {
-  border-color: var(--accent-color, #4a6cf7);
+  border-color: var(--accent-primary, #07c160);
 }
 .ts-css-textarea:disabled {
   background: var(--bg-secondary);
@@ -921,16 +921,16 @@ async function handleImportFile(e: Event) {
 
 .ts-btn-save {
   background: var(--bg-primary);
-  color: var(--accent-color, #4a6cf7);
-  border-color: var(--accent-color, #4a6cf7);
+  color: var(--accent-primary, #07c160);
+  border-color: var(--accent-primary, #07c160);
 }
-.ts-btn-save:hover { background: color-mix(in srgb, var(--accent-color, #4a6cf7) 8%, transparent); }
+.ts-btn-save:hover { background: color-mix(in srgb, var(--accent-primary, #07c160) 8%, transparent); }
 .ts-btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .ts-btn-apply {
-  background: var(--accent-color, #4a6cf7);
+  background: var(--accent-primary, #07c160);
   color: #fff;
-  border-color: var(--accent-color, #4a6cf7);
+  border-color: var(--accent-primary, #07c160);
 }
 .ts-btn-apply:hover { opacity: 0.9; }
 
@@ -986,9 +986,9 @@ async function handleImportFile(e: Event) {
 }
 .ts-mode-btn:hover { background: var(--bg-hover); }
 .ts-mode-btn.active {
-  background: color-mix(in srgb, var(--accent-color, #4a6cf7) 15%, transparent);
-  border-color: var(--accent-color, #4a6cf7);
-  color: var(--accent-color, #4a6cf7);
+  background: color-mix(in srgb, var(--accent-primary, #07c160) 15%, transparent);
+  border-color: var(--accent-primary, #07c160);
+  color: var(--accent-primary, #07c160);
   font-weight: 600;
 }
 
@@ -1002,7 +1002,7 @@ async function handleImportFile(e: Event) {
   color: var(--text-primary);
   outline: none;
 }
-.ts-create-dialog input:focus { border-color: var(--accent-color, #4a6cf7); }
+.ts-create-dialog input:focus { border-color: var(--accent-primary, #07c160); }
 
 .ts-create-btns {
   display: flex;

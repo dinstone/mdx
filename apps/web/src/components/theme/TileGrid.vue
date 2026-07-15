@@ -81,6 +81,9 @@ function getValue(opt: TileOption) {
   border-color: var(--ui-accent-primary, #07c160);
   color: #fff;
 }
+.tile-btn.active:hover:not(:disabled) {
+  color: #fff;
+}
 
 .tile-btn:disabled {
   opacity: 0.5;
