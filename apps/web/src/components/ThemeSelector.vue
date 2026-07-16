@@ -304,10 +304,13 @@ async function handleImportFile(e: Event) {
           <button
             v-for="t in builtInList"
             :key="t.id"
-            class="ts-item"
+            class="ts-item ts-item-builtin"
             :class="{ active: selectedId === t.id, applied: currentId === t.id }"
             @click="selectedId = t.id"
           >
+            <svg class="ts-item-type-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
             <span class="ts-item-name">{{ t.name }}</span>
             <svg v-if="currentId === t.id" class="ts-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </button>
@@ -326,6 +329,9 @@ async function handleImportFile(e: Event) {
               <button class="ts-del-btn ts-del-no" @click="deleteConfirmId = null">取消</button>
             </template>
             <template v-else>
+              <svg class="ts-item-type-icon ts-item-type-icon--custom" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
               <span class="ts-item-name" @click="selectedId = t.id">{{ t.name }}</span>
               <div class="ts-item-actions">
                 <button class="ts-item-act-btn ts-item-act-btn-danger" title="删除" @click.stop="deleteConfirmId = t.id">
@@ -607,6 +613,17 @@ async function handleImportFile(e: Event) {
 .ts-item-custom {
   padding-right: 4px;
 }
+
+.ts-item-type-icon {
+  flex-shrink: 0;
+  opacity: 0.45;
+  transition: opacity 0.12s;
+}
+.ts-item:hover .ts-item-type-icon,
+.ts-item.active .ts-item-type-icon { opacity: 0.7; }
+.ts-item-type-icon--custom { opacity: 0.35; }
+.ts-item:hover .ts-item-type-icon--custom,
+.ts-item.active .ts-item-type-icon--custom { opacity: 0.55; }
 
 .ts-item-name {
   flex: 1;

@@ -17,10 +17,10 @@ Congratulations on generating your Wails3 application! This README will guide yo
 3. To build your application for production, use:
 
    ```
-   wails3 build
+   wails3 package
    ```
 
-   This will create a production-ready executable in the `build` directory.
+   This will create a production-ready executable in the `bin` directory.
 
 ## Exploring Wails3 Features
 
