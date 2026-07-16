@@ -6,8 +6,8 @@ version: "3"
 # This information is used to generate the build assets.
 info:
   companyName: "dinstone ltd" # The name of the company
-  productName: "MDXor" # The name of the application
-  productIdentifier: "com.dinstone.mdxor" # The unique product identifier
+  productName: "MDX" # The name of the application
+  productIdentifier: "com.dinstone.mdx" # The unique product identifier
   description: "A Markdown editor built with Wails 3" # The application description
   copyright: "(c) 2025, dinstone ltd" # Copyright text
   comments: "MDXor Markdown Editor" # Comments

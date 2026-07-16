@@ -5,13 +5,13 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "MDXor"
+    !define INFO_PROJECTNAME "MDX"
 !endif
 !ifndef INFO_COMPANYNAME
     !define INFO_COMPANYNAME "dinstone ltd"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "MDXor"
+    !define INFO_PRODUCTNAME "MDX"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "0.5.0"

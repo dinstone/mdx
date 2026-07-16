@@ -30,7 +30,7 @@
 			</dict>
 		</array>
 		<key>CFBundleExecutable</key>
-		<string>MDXor</string>
+		<string>MDX</string>
 		<key>CFBundleGetInfoString</key>
 		<string>MDXor Markdown Editor</string>
 		<key>CFBundleIconFile</key>
@@ -38,9 +38,9 @@
 		<key>CFBundleIconName</key>
 		<string>appicon</string>
 		<key>CFBundleIdentifier</key>
-		<string>com.dinstone.mdxor</string>
+		<string>com.dinstone.mdx</string>
 		<key>CFBundleName</key>
-		<string>MDXor</string>
+		<string>MDX</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>

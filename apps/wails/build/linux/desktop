@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=MDXor
+Name=MDX
 Comment=A Markdown editor built with Wails 3
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/MDXor %u
+Exec=/usr/local/bin/MDX %u
 Terminal=false
 Type=Application
-Icon=MDXor
+Icon=MDX
 Categories=Utility;
-StartupWMClass=MDXor
+StartupWMClass=MDX
 
  
