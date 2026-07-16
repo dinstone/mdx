@@ -2,6 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
+		<key>CFBundleDocumentTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeExtensions</key>
+				<array>
+					<string>md</string>
+				</array>
+				<key>CFBundleTypeIconFile</key>
+				<string>appicon</string>
+				<key>CFBundleTypeName</key>
+				<string>Markdown Document</string>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+			</dict>
+			<dict>
+				<key>CFBundleTypeExtensions</key>
+				<array>
+					<string>markdown</string>
+				</array>
+				<key>CFBundleTypeIconFile</key>
+				<string>appicon</string>
+				<key>CFBundleTypeName</key>
+				<string>Markdown Document</string>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+			</dict>
+		</array>
 		<key>CFBundleExecutable</key>
 		<string>MDXor</string>
 		<key>CFBundleGetInfoString</key>

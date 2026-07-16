@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"mdx/internal/service"
 )
@@ -17,14 +18,16 @@ func init() {
 	application.RegisterEvent[string]("refresh")
 	application.RegisterEvent[string]("workspace:opened")
 	application.RegisterEvent[string]("workspace:closed")
+	application.RegisterEvent[string]("file:opened")
 }
 
 func main() {
 	workspaceSvc := &service.WorkspaceService{}
 
 	app := application.New(application.Options{
-		Name:        "MDX Editor",
-		Description: "A Markdown editor built with Wails 3 + Vue 3",
+		Name:             "MDX Editor",
+		Description:      "A Markdown editor built with Wails 3 + Vue 3",
+		FileAssociations: []string{".md", ".markdown"},
 		Services: []application.Service{
 			application.NewService(&service.FileService{}),
 			application.NewService(&service.FolderService{}),
@@ -79,6 +82,16 @@ func main() {
 		URL:              "/",
 		UseApplicationMenu: true,
 	})
+
+	// Handle opening files via Finder / double-click.
+	// We emit "file:opened" and let the frontend handle workspace open +
+	// setActiveFile.  This avoids double-calling workspaceSvc.Open()
+	// (once here, once from the frontend) which would clear activeFileId.
+	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile,
+		func(event *application.ApplicationEvent) {
+			associatedFile := event.Context().Filename()
+			app.Event.Emit("file:opened", associatedFile)
+		})
 
 	err := app.Run()
 	if err != nil {

@@ -64,17 +64,16 @@ dev_mode:
 # File Associations
 # More information at: https://v3.wails.io/noit/done/yet
 fileAssociations:
-#  - ext: wails
-#    name: Wails
-#    description: Wails Application File
-#    iconName: wailsFileIcon
-#    role: Editor
-#  - ext: jpg
-#    name: JPEG
-#    description: Image File
-#    iconName: jpegFileIcon
-#    role: Editor
-#    mimeType: image/jpeg  # (optional)
+  - ext: md
+    name: Markdown Document
+    description: Markdown Document File
+    iconName: appicon
+    role: Editor
+  - ext: markdown
+    name: Markdown Document
+    description: Markdown Document File
+    iconName: appicon
+    role: Editor
 
 # Other data
 other:

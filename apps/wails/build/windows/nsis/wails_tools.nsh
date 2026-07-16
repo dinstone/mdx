@@ -229,10 +229,22 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
 !macro wails.associateFiles
     ; Create file associations
     
+    !insertmacro APP_ASSOCIATE "md" "Markdown Document" "Markdown Document File" "$INSTDIR\appicon.ico" "Open with ${INFO_PRODUCTNAME}" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+    File "..\appicon.ico"
+    
+    !insertmacro APP_ASSOCIATE "markdown" "Markdown Document" "Markdown Document File" "$INSTDIR\appicon.ico" "Open with ${INFO_PRODUCTNAME}" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+    File "..\appicon.ico"
+    
 !macroend
 
 !macro wails.unassociateFiles
     ; Delete app associations
+    
+    !insertmacro APP_UNASSOCIATE "md" "Markdown Document"
+    Delete "$INSTDIR\appicon.ico"
+    
+    !insertmacro APP_UNASSOCIATE "markdown" "Markdown Document"
+    Delete "$INSTDIR\appicon.ico"
     
 !macroend
 

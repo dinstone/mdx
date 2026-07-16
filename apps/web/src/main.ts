@@ -69,6 +69,16 @@ if (window.__WAILS_MODE__) {
           /* ignore */
         });
       });
+      // Handle file associations: open workspace at parent dir, then select the file.
+      Events.On("file:opened", (event: any) => {
+        const filePath = event?.data;
+        if (typeof filePath === "string" && filePath) {
+          const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+          store.openWorkspace(store.resolveWorkspace(dir)).then(() => {
+            store.setActiveFile(filePath);
+          }).catch(() => { /* ignore */ });
+        }
+      });
     } catch {
       // Events system not available (browser mode or pre-init phase).
       // The app still works — users can open a workspace via the UI buttons.
