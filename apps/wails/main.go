@@ -25,8 +25,8 @@ func main() {
 	workspaceSvc := &service.WorkspaceService{}
 
 	app := application.New(application.Options{
-		Name:             "MDX Editor",
-		Description:      "A Markdown editor built with Wails 3 + Vue 3",
+		Name:             "MDX",
+		Description:      "A Markdown tools(editor, preview, publish) built with Wails 3 + Vue 3",
 		FileAssociations: []string{".md", ".markdown"},
 		Services: []application.Service{
 			application.NewService(&service.FileService{}),
@@ -70,7 +70,7 @@ func main() {
 	app.Menu.Set(menu)
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "MDX Editor",
+		Title:  "MDX",
 		Width:  1200,
 		Height: 800,
 		Mac: application.MacWindow{
