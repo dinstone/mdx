@@ -574,7 +574,7 @@ const workspaceGridColumns = computed(() => {
 
 .sidebar-divider:hover::after,
 .sidebar-divider--dragging::after {
-  background: var(--accent-color, #4a6cf7);
+  background: var(--accent-primary, #07c160);
   opacity: 0.8;
 }
 
@@ -611,7 +611,7 @@ const workspaceGridColumns = computed(() => {
 
 .pane-divider:hover::after,
 .pane-divider--dragging::after {
-  background: var(--accent-color, #4a6cf7);
+  background: var(--accent-primary, #07c160);
   opacity: 0.8;
 }
 
