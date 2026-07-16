@@ -87,4 +87,6 @@ export interface IServiceBridge {
   // ---- Runtime detection ----
   /** Whether this bridge is backed by a native Wails backend. */
   readonly isDesktop: boolean
+  /** Returns the file path from a cold-launch file association, or empty string. */
+  getPendingOpenFile(): Promise<string>
 }

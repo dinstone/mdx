@@ -1,3 +1,6 @@
+import { Events } from "@wailsio/runtime";
+export { Events };
+
 /**
  * DesktopBridge — delegates all operations to the Go backend via auto-generated
  * Wails 3 TypeScript bindings.
@@ -108,6 +111,12 @@ export class DesktopBridge implements IServiceBridge {
     const state = await WorkspaceService.PickAndOpen()
     if (!state) throw new Error('No folder selected')
     return state as WorkspaceState
+  }
+
+  /** Returns the file path from a cold-launch file association, or empty string. */
+  async getPendingOpenFile(): Promise<string> {
+    const path = await WorkspaceService.GetPendingOpenFile()
+    return path ?? ''
   }
 
   // -- System --------------------------------------------------------------

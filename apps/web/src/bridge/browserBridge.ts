@@ -475,4 +475,8 @@ export class BrowserBridge implements IServiceBridge {
   async showItemInFolder(_absPath: string): Promise<void> {
     // No-op in browser — there is no file manager to reveal.
   }
+
+  async getPendingOpenFile(): Promise<string> {
+    return '' // Browser mode never has cold-launch file associations
+  }
 }

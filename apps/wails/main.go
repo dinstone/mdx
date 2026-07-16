@@ -78,19 +78,29 @@ func main() {
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: application.NewRGB(255, 255, 255),
-		URL:              "/",
+		BackgroundColour:   application.NewRGB(255, 255, 255),
+		URL:                "/",
 		UseApplicationMenu: true,
 	})
 
 	// Handle opening files via Finder / double-click.
-	// We emit "file:opened" and let the frontend handle workspace open +
-	// setActiveFile.  This avoids double-calling workspaceSvc.Open()
-	// (once here, once from the frontend) which would clear activeFileId.
+	//
+	// Two paths:
+	//   Cold launch — frontend not yet loaded.  Queue the file; when the
+	//     frontend calls GetPendingOpenFile it will be consumed.
+	//   Hot launch  — frontend is already listening on "file:opened".
+	//     We can emit the event directly.
 	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile,
 		func(event *application.ApplicationEvent) {
 			associatedFile := event.Context().Filename()
-			app.Event.Emit("file:opened", associatedFile)
+			log.Printf("[file-assoc] ApplicationOpenedWithFile: %s (frontendReady=%v)", associatedFile, service.IsFrontendReady())
+			if service.IsFrontendReady() {
+				log.Printf("[file-assoc] frontend is ready, emitting file:opened event")
+				app.Event.Emit("file:opened", associatedFile)
+			} else {
+				log.Printf("[file-assoc] frontend NOT ready, queueing for cold-launch")
+				service.QueueOpenFile(associatedFile)
+			}
 		})
 
 	err := app.Run()

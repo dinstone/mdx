@@ -46,11 +46,12 @@ export function getBridge(): IServiceBridge {
 
 /**
  * Initialize DesktopBridge. Must be called AFTER @wailsio/runtime sets up
- * window._wails (via dynamic import in main.ts).
+ * window._wails (via static import in desktopBridge.ts).
  */
-export async function initDesktop(): Promise<void> {
-  const { DesktopBridge } = await import('./desktopBridge')
+export async function initDesktop(): Promise<{ Events: typeof import('@wailsio/runtime').Events }> {
+  const { DesktopBridge, Events } = await import('./desktopBridge')
   _desktopBridge = new DesktopBridge()
+  return { Events }
 }
 
 // Re-export types so consumers only import from '@/bridge'
