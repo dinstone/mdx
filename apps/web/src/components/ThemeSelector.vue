@@ -453,8 +453,8 @@ async function handleImportFile(e: Event) {
                 </div>
               </div>
               <button
+                v-if="!isBuiltIn"
                 class="ts-btn ts-btn-delete"
-                :disabled="isBuiltIn"
                 title="删除自定义主题"
                 @click="onDeleteClick"
               >删除</button>
@@ -465,13 +465,14 @@ async function handleImportFile(e: Event) {
               <span class="ts-delete-hint">删除后不可恢复，请确认</span>
             </template>
             <template v-else>
-              <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
               <button
+              v-if="!isBuiltIn"
                 class="ts-btn ts-btn-save"
-                :disabled="!hasUnsavedChanges || isBuiltIn"
+                :disabled="!hasUnsavedChanges"
                 @click="handleSaveChanges"
               >保存</button>
               <button class="ts-btn ts-btn-apply" @click="handleApply">应用</button>
+              <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
             </template>
           </div>
         </div>
