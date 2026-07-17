@@ -528,13 +528,10 @@ const workspaceGridColumns = computed(() => {
 
 .history-pane {
   position: relative;
-  overflow: hidden;
   height: 100%;
   min-height: 0;
   border-radius: 0;
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: var(--border-width) solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
@@ -543,7 +540,6 @@ const workspaceGridColumns = computed(() => {
   height: 100%;
   min-height: 0;
   border-radius: 0;
-  overflow: hidden;
   background: transparent;
   border: none;
 }

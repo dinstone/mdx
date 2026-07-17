@@ -191,8 +191,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  user-select: none;
+  min-height: 0;
 }
 
 .fs-header {
@@ -203,6 +202,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   box-sizing: border-box;
   padding: 0 24px;
   border-bottom: var(--border-width) solid var(--border-light);
+  user-select: none;
 }
 
 .fs-workspace-info {
@@ -294,16 +294,28 @@ function setSort(mode: 'recent' | 'name-asc') {
   border-radius: 0;
   padding: 10px 16px 10px 36px;
   font-size: 13px;
-  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  background: var(--bg-primary);
   transition: all 0.2s ease;
   outline: none;
   color: var(--text-primary);
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  cursor: text;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  position: relative;
+  z-index: 1;
 }
 
 .fs-search-wrapper input:focus {
   background: var(--bg-primary);
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.fs-search-wrapper input::selection {
+  background: rgba(7, 193, 96, 0.35);
+  color: var(--text-primary);
 }
 
 .fs-sort-wrapper {
@@ -328,6 +340,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   padding: 4px;
   display: flex;
   flex-direction: column;
+  user-select: none;
 }
 
 .fs-sort-dropdown button {
@@ -384,6 +397,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   border-top: var(--border-width) solid var(--border-light);
   color: var(--text-tertiary);
   font-size: 12px;
+  user-select: none;
 }
 
 .fs-brand {

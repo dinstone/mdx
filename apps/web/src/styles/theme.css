@@ -176,7 +176,12 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  background: rgba(7, 193, 96, 0.3);
+  color: inherit;
+}
+
+[data-ui-theme="dark"] ::selection {
+  background: rgba(7, 193, 96, 0.4);
   color: inherit;
 }
 
