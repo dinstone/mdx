@@ -33,6 +33,41 @@ const showSearch = ref(false)
 const currentView = computed(() => viewRef.value as EditorView | null)
 const toast = useToast()
 
+// -- 字体大小调节 --
+const FONT_SIZE_KEY = 'mdx-editor-font-size'
+const FONT_MIN = 10
+const FONT_MAX = 28
+
+function readFontSize(): number {
+  try {
+    const v = localStorage.getItem(FONT_SIZE_KEY)
+    if (v) {
+      const n = parseInt(v, 10)
+      if (!isNaN(n) && n >= FONT_MIN && n <= FONT_MAX) return n
+    }
+  } catch { /* ignore */ }
+  return 16
+}
+
+const fontSize = ref(readFontSize())
+
+function persistFontSize(v: number) {
+  fontSize.value = v
+  try { localStorage.setItem(FONT_SIZE_KEY, String(v)) } catch { /* ignore */ }
+}
+
+function zoomIn() {
+  if (fontSize.value < FONT_MAX) persistFontSize(fontSize.value + 1)
+}
+
+function zoomOut() {
+  if (fontSize.value > FONT_MIN) persistFontSize(fontSize.value - 1)
+}
+
+function resetFontSize() {
+  persistFontSize(14)
+}
+
 function getScrollPercent(): number {
   const view = viewRef.value
   if (!view) return 0
@@ -130,9 +165,23 @@ onMounted(() => {
   if (!editorContainer.value) return
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+    const mod = e.metaKey || e.ctrlKey
+    if (mod && e.key === 'f') {
       e.preventDefault()
       showSearch.value = true
+    }
+    // 字体缩放：Cmd/Ctrl + = (放大)  /  Cmd/Ctrl + - (缩小)  /  Cmd/Ctrl + 0 (重置)
+    if (mod && (e.key === '=' || e.key === '+')) {
+      e.preventDefault()
+      zoomIn()
+    }
+    if (mod && e.key === '-') {
+      e.preventDefault()
+      zoomOut()
+    }
+    if (mod && e.key === '0') {
+      e.preventDefault()
+      resetFontSize()
     }
   }
   window.addEventListener('keydown', handleKeyDown)
@@ -171,7 +220,7 @@ onMounted(() => {
         '&.cm-focused': { outline: 'none' },
         '.cm-scroller': {
           fontFamily: 'var(--font-mono)',
-          fontSize: '14px',
+          fontSize: 'var(--editor-font-size)',
           lineHeight: '1.75',
         },
         '.cm-content': {
@@ -229,7 +278,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="markdown-editor">
+  <div class="markdown-editor" :style="{ '--editor-font-size': fontSize + 'px' }">
     <div class="editor-header">
       <span class="editor-title">Markdown 编辑器</span>
       <span v-if="fileName" class="editor-filename">{{ fileName }}</span>
@@ -262,8 +311,15 @@ onMounted(() => {
         <span class="editor-stat">行数: {{ lineCount }}</span>
         <span class="editor-stat">字数: {{ wordCount }}</span>
       </div>
-      <div class="save-indicator" :class="saved ? 'saved' : 'unsaved'">
-        {{ saveStatusText }}
+      <div class="editor-right">
+        <div class="font-size-control">
+          <button class="fsz-btn" title="缩小 (⌘-)" @click="zoomOut">−</button>
+          <span class="fsz-val" title="重置 (⌘0)" @click="resetFontSize">{{ fontSize }}px</span>
+          <button class="fsz-btn" title="放大 (⌘+)" @click="zoomIn">+</button>
+        </div>
+        <div class="save-indicator" :class="saved ? 'saved' : 'unsaved'">
+          {{ saveStatusText }}
+        </div>
       </div>
     </div>
   </div>
@@ -395,5 +451,56 @@ onMounted(() => {
 .save-indicator.unsaved {
   color: #f59e0b;
   background: rgba(245, 158, 11, 0.1);
+}
+
+.editor-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fsz-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.fsz-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.fsz-val {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 32px;
+  text-align: center;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 0;
+  transition: all 0.15s ease;
+}
+
+.fsz-val:hover {
+  color: var(--accent-primary);
+  background: var(--bg-hover);
 }
 </style>
