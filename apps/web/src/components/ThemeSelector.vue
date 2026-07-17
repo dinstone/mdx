@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 主题管理器 + 可视化设计器 — 单面板三列布局
- * 左侧：主题列表  |  中间：实时预览  |  右侧：编辑控件
+ * 左侧：主题列表  |  中间：编辑控件  |  右侧：实时预览
  */
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useThemeStore, type CustomTheme } from '../stores/themes'
@@ -371,39 +371,14 @@ async function handleImportFile(e: Event) {
         </div>
 
         <!-- Footer buttons -->
-        <div class="ts-left-footer">
-          <button class="ts-foot-btn ts-foot-btn-primary" @click="openCreate">+ 新建自定义主题</button>
+        <div class="ts-bottom-bar">
+          <button class="ts-foot-btn ts-foot-btn-primary" @click="openCreate">+ 新建主题</button>
           <button class="ts-foot-btn" @click="triggerImport">导入主题</button>
           <input ref="fileInputRef" type="file" accept=".json" class="ts-file-hidden" @change="handleImportFile" />
         </div>
       </div>
 
-      <!-- ========== CENTER: Preview ========== -->
-      <div class="ts-center">
-        <div class="ts-center-header">
-          <h3>实时预览</h3>
-          <div class="ts-preview-tabs">
-            <button
-              class="ts-preview-tab"
-              :class="{ active: previewSource === 'current' }"
-              @click="previewSource = 'current'"
-            >当前文章</button>
-            <button
-              class="ts-preview-tab"
-              :class="{ active: previewSource === 'sample' }"
-              @click="previewSource = 'sample'"
-            >示例内容</button>
-          </div>
-        </div>
-        <ThemeLivePreview
-          :key="selectedId"
-          :css="liveCSS"
-          :markdown="previewMarkdown"
-          :is-dark="props.isDark"
-        />
-      </div>
-
-      <!-- ========== RIGHT: Editor ========== -->
+      <!-- ========== CENTER: Editor ========== -->
       <div class="ts-right">
         <div class="ts-right-header">
           <h3>主题样式</h3>
@@ -452,57 +427,81 @@ async function handleImportFile(e: Event) {
           </template>
         </div>
 
-        <!-- Action buttons moved to bottom bar -->
+        <!-- Action buttons live inside the editor column -->
+        <div class="ts-bottom-bar">
+          <div class="ts-bottom-left">
+            <template v-if="showDeleteConfirm">
+              <button class="ts-btn ts-btn-delete" @click="confirmDeleteFromBar">确认删除</button>
+              <button class="ts-btn ts-btn-cancel" @click="cancelDelete">取消</button>
+            </template>
+            <template v-else>
+              <button
+                class="ts-btn ts-btn-copy"
+                title="复制并创建自定义主题"
+                @click="duplicateAndEdit"
+              >复制</button>
+              <div class="ts-export-wrap" ref="exportMenuEl">
+                <button class="ts-btn" @click="showExportMenu = !showExportMenu">
+                  导出
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div v-if="showExportMenu" class="ts-export-menu">
+                  <button @click="handleExport('json')">导出 JSON</button>
+                  <button @click="handleExport('css')">导出 CSS</button>
+                </div>
+              </div>
+              <button
+                class="ts-btn ts-btn-delete"
+                :disabled="isBuiltIn"
+                title="删除自定义主题"
+                @click="onDeleteClick"
+              >删除</button>
+            </template>
+          </div>
+          <div class="ts-bottom-right">
+            <template v-if="showDeleteConfirm">
+              <span class="ts-delete-hint">删除后不可恢复，请确认</span>
+            </template>
+            <template v-else>
+              <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
+              <button
+                class="ts-btn ts-btn-save"
+                :disabled="!hasUnsavedChanges || isBuiltIn"
+                @click="handleSaveChanges"
+              >保存</button>
+              <button class="ts-btn ts-btn-apply" @click="handleApply">应用</button>
+            </template>
+          </div>
+        </div>
       </div>
 
-      <!-- ========== BOTTOM: Unified action bar ========== -->
-      <div class="ts-bottom-bar">
-        <div class="ts-bottom-left">
-          <template v-if="showDeleteConfirm">
-            <button class="ts-btn ts-btn-delete" @click="confirmDeleteFromBar">确认删除</button>
-            <button class="ts-btn ts-btn-cancel" @click="cancelDelete">取消</button>
-          </template>
-          <template v-else>
+      <!-- ========== RIGHT: Preview ========== -->
+      <div class="ts-center">
+        <div class="ts-center-header">
+          <h3>实时预览</h3>
+          <div class="ts-preview-tabs">
             <button
-              class="ts-btn ts-btn-copy"
-              title="复制并创建自定义主题"
-              @click="duplicateAndEdit"
-            >复制</button>
-            <div class="ts-export-wrap" ref="exportMenuEl">
-              <button class="ts-btn" @click="showExportMenu = !showExportMenu">
-                导出
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              <div v-if="showExportMenu" class="ts-export-menu">
-                <button @click="handleExport('json')">导出 JSON</button>
-                <button @click="handleExport('css')">导出 CSS</button>
-              </div>
-            </div>
+              class="ts-preview-tab"
+              :class="{ active: previewSource === 'current' }"
+              @click="previewSource = 'current'"
+            >当前文章</button>
             <button
-              class="ts-btn ts-btn-delete"
-              :disabled="isBuiltIn"
-              title="删除自定义主题"
-              @click="onDeleteClick"
-            >删除</button>
-          </template>
+              class="ts-preview-tab"
+              :class="{ active: previewSource === 'sample' }"
+              @click="previewSource = 'sample'"
+            >示例内容</button>
+          </div>
         </div>
-        <div class="ts-bottom-right">
-          <template v-if="showDeleteConfirm">
-            <span class="ts-delete-hint">删除后不可恢复，请确认</span>
-          </template>
-          <template v-else>
-            <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
-            <button
-              class="ts-btn ts-btn-save"
-              :disabled="!hasUnsavedChanges || isBuiltIn"
-              @click="handleSaveChanges"
-            >保存修改</button>
-            <button class="ts-btn ts-btn-apply" @click="handleApply">应用主题</button>
-          </template>
-        </div>
+        <ThemeLivePreview
+          :key="selectedId"
+          :css="liveCSS"
+          :markdown="previewMarkdown"
+          :is-dark="props.isDark"
+        />
       </div>
+
     </div>
 
     <!-- Create dialog (overlay on panel) -->
@@ -556,7 +555,7 @@ async function handleImportFile(e: Event) {
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   display: grid;
-  grid-template-columns: 240px 1fr 340px;
+  grid-template-columns: 240px 400px 1fr;
   grid-template-rows: 1fr auto;
   overflow: hidden;
 }
@@ -924,8 +923,6 @@ async function handleImportFile(e: Event) {
 
 /* Bottom action bar */
 .ts-bottom-bar {
-  grid-column: 1 / -1;
-  grid-row: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
