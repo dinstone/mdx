@@ -304,6 +304,11 @@ async function handleImportFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
+  if (!file.name.toLowerCase().endsWith('.json')) {
+    toast.error('仅支持导入 .json 主题文件')
+    input.value = ''
+    return
+  }
   const ok = await themeStore.importTheme(file)
   if (ok) {
     toast.success('主题导入成功')
@@ -374,7 +379,7 @@ async function handleImportFile(e: Event) {
         <div class="ts-bottom-bar">
           <button class="ts-foot-btn ts-foot-btn-primary" @click="openCreate">+ 新建主题</button>
           <button class="ts-foot-btn" @click="triggerImport">导入主题</button>
-          <input ref="fileInputRef" type="file" accept=".json" class="ts-file-hidden" @change="handleImportFile" />
+          <input ref="fileInputRef" type="file" accept=".json,application/json" class="ts-file-hidden" @change="handleImportFile" />
         </div>
       </div>
 

@@ -233,7 +233,6 @@ export const useThemeStore = defineStore('themes', () => {
 
     const data: Record<string, unknown> = {
       name: theme.name,
-      css: theme.css,
       editorMode: theme.editorMode || 'css',
       exportedAt: new Date().toISOString(),
     }
@@ -275,8 +274,8 @@ export const useThemeStore = defineStore('themes', () => {
       const text = await file.text()
       const data = JSON.parse(text)
 
-      if (!data.name || !data.css) {
-        console.error('[themeStore] 无效的主题文件：缺少 name 或 css')
+      if (!data.name || (!data.css && !data.designerVariables)) {
+        console.error('[themeStore] 无效的主题文件：缺少 name，且同时缺少 css 与 designerVariables')
         return false
       }
 
@@ -289,8 +288,13 @@ export const useThemeStore = defineStore('themes', () => {
         finalName = `${data.name} (${suffix})`
       }
 
-      createTheme(finalName, data.css, {
-        editorMode: data.editorMode || 'css',
+      // 可视化主题可能只导出了 designerVariables（无 css），按需由变量重新生成 CSS
+      const css =
+        data.css ||
+        (data.designerVariables ? generateCSS(data.designerVariables) : '')
+
+      createTheme(finalName, css, {
+        editorMode: data.editorMode || (data.designerVariables ? 'visual' : 'css'),
         designerVariables: data.designerVariables,
       })
       return true
