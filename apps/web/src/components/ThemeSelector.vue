@@ -223,11 +223,20 @@ function confirmCreate() {
     const t = themeStore.createVisualTheme(name, JSON.parse(JSON.stringify(defaultVariables)))
     selectedId.value = t.id
     // Don't apply immediately — let user edit first
+  } else if (createMode.value === 'duplicate') {
+    const src = themeStore.currentTheme
+    let t
+    if (src.designerVariables) {
+      // 当前是可视化主题：连同设计变量一起复制，副本仍为可视化，可继续用设计器编辑
+      t = themeStore.createVisualTheme(name, JSON.parse(JSON.stringify(src.designerVariables)))
+    } else {
+      // 当前是纯 CSS / 内置主题：无设计变量，只能按 CSS 模式复制
+      t = themeStore.createTheme(name, themeStore.getThemeCSS(themeStore.currentThemeId))
+    }
+    selectedId.value = t.id
+    toast.success('主题创建成功')
   } else {
-    const css = createMode.value === 'duplicate'
-      ? themeStore.getThemeCSS(themeStore.currentThemeId)
-      : ''
-    const t = themeStore.createTheme(name, css)
+    const t = themeStore.createTheme(name, '')
     selectedId.value = t.id
     toast.success('主题创建成功')
   }
@@ -516,8 +525,7 @@ async function handleImportFile(e: Event) {
         <h4>新建自定义主题</h4>
         <div class="ts-create-mode">
           <button class="ts-mode-btn" :class="{ active: createMode === 'visual' }" @click="createMode = 'visual'">可视化设计</button>
-          <button class="ts-mode-btn" :class="{ active: createMode === 'duplicate' }" @click="createMode = 'duplicate'">复制当前主题</button>
-          <button class="ts-mode-btn" :class="{ active: createMode === 'blank' }" @click="createMode = 'blank'">从空白创建</button>
+          <button class="ts-mode-btn" :class="{ active: createMode === 'duplicate' }" @click="createMode = 'duplicate'">复制当前主题（{{ themeStore.currentTheme.name }}）</button>
         </div>
         <input
           v-model="newThemeName"
