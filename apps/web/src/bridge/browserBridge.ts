@@ -246,6 +246,12 @@ export class BrowserBridge implements IServiceBridge {
     await promisify(store.put({ path: absPath, content, updatedAt: Date.now() }))
   }
 
+  // Browser mode has no native dialog; return '' so the caller falls back to a
+  // Blob download (handled in the theme store).
+  async saveFileDialog(_defaultName: string): Promise<string> {
+    return ''
+  }
+
   async createFile(dirPath: string, name: string): Promise<string> {
     await this._ready
     const fname = name.endsWith('.md') ? name : `${name}.md`

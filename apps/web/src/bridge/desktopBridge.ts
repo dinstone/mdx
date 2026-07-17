@@ -54,6 +54,10 @@ export class DesktopBridge implements IServiceBridge {
     return FileService.Exists(absPath)
   }
 
+  async saveFileDialog(defaultName: string): Promise<string> {
+    return FileService.SaveFileDialog(defaultName)
+  }
+
   // -- Folder --------------------------------------------------------------
 
   async listFolder(absPath: string): Promise<FileEntry[]> {

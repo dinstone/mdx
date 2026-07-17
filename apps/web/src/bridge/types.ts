@@ -60,6 +60,8 @@ export interface IServiceBridge {
   renameFile(oldPath: string, newName: string): Promise<string>
   moveFile(sourcePath: string, targetDir: string): Promise<string>
   exists(absPath: string): Promise<boolean>
+  /** Shows a native "Save As" dialog (desktop) and returns the chosen path, or '' if cancelled. Browser returns '' so callers fall back to a Blob download. */
+  saveFileDialog(defaultName: string): Promise<string>
 
   // ---- Folder ----
   listFolder(absPath: string): Promise<FileEntry[]>

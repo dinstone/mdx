@@ -13,6 +13,7 @@ import { builtInThemes, type ThemeEntry } from '../config/themes'
 import type { DesignerVariables } from '../theme-designer/types'
 import { defaultVariables } from '../theme-designer/defaults'
 import { generateCSS } from '../theme-designer/generateCSS'
+import { getBridge } from '../bridge'
 
 // ---------------------------------------------------------------------------
 // Data types
@@ -214,8 +215,19 @@ export const useThemeStore = defineStore('themes', () => {
     return createTheme(newName || `${source.name} (副本)`, source.css)
   }
 
-  /** 导出主题为 .json 文件 */
-  function exportTheme(id: string) {
+  /** 触发浏览器端 Blob 下载（仅非桌面模式使用） */
+  function downloadBlob(content: string, mimeType: string, filename: string) {
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  /** 导出主题为 .json 文件（桌面端走原生"另存为"，浏览器走 Blob 下载） */
+  async function exportTheme(id: string) {
     const theme = allThemes.value.find((t) => t.id === id)
     if (!theme) return
 
@@ -228,27 +240,33 @@ export const useThemeStore = defineStore('themes', () => {
     if (theme.designerVariables) {
       data.designerVariables = theme.designerVariables
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${theme.name}.mdx-theme.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    const content = JSON.stringify(data, null, 2)
+    const defaultName = `${theme.name}.mdx-theme.json`
+
+    if (getBridge().isDesktop) {
+      const path = await getBridge().saveFileDialog(defaultName)
+      if (!path) return // 用户取消
+      await getBridge().writeFile(path, content)
+    } else {
+      downloadBlob(content, 'application/json', defaultName)
+    }
   }
 
   /** 导出主题为纯 .css 文件 */
-  function exportThemeCSS(id: string) {
+  async function exportThemeCSS(id: string) {
     const theme = allThemes.value.find((t) => t.id === id)
     if (!theme) return
 
-    const blob = new Blob([theme.css], { type: 'text/css' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${theme.name}.css`
-    a.click()
-    URL.revokeObjectURL(url)
+    const content = theme.css
+    const defaultName = `${theme.name}.css`
+
+    if (getBridge().isDesktop) {
+      const path = await getBridge().saveFileDialog(defaultName)
+      if (!path) return // 用户取消
+      await getBridge().writeFile(path, content)
+    } else {
+      downloadBlob(content, 'text/css', defaultName)
+    }
   }
 
   /** 从 .json 文件导入主题 */

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
+
 	"mdx/internal/util"
 )
 
@@ -91,4 +93,20 @@ func (s *FileService) MoveFile(sourcePath string, targetDir string) (string, err
 func (s *FileService) Exists(absPath string) bool {
 	_, err := os.Stat(absPath)
 	return err == nil
+}
+
+// SaveFileDialog shows a native "Save As" dialog pre-filled with the given
+// default filename and returns the absolute path the user chose. An empty
+// string is returned when the user cancels the dialog. The caller is
+// responsible for writing the actual content (typically via WriteFile).
+func (s *FileService) SaveFileDialog(defaultName string) (string, error) {
+	result, err := application.Get().Dialog.SaveFile().
+		SetFilename(defaultName).
+		SetButtonText("导出").
+		CanCreateDirectories(true).
+		PromptForSingleSelection()
+	if err != nil {
+		return "", fmt.Errorf("save file dialog: %w", err)
+	}
+	return result, nil
 }
