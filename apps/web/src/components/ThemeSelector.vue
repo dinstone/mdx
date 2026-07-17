@@ -440,7 +440,7 @@ async function handleImportFile(e: Event) {
                 title="复制并创建自定义主题"
                 @click="duplicateAndEdit"
               >复制</button>
-              <div class="ts-export-wrap" ref="exportMenuEl">
+              <div v-if="!isBuiltIn" class="ts-export-wrap" ref="exportMenuEl">
                 <button class="ts-btn" @click="showExportMenu = !showExportMenu">
                   导出
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -556,7 +556,7 @@ async function handleImportFile(e: Event) {
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   display: grid;
-  grid-template-columns: 240px 400px 1fr;
+  grid-template-columns: 240px 420px 1fr;
   grid-template-rows: 1fr auto;
   overflow: hidden;
 }
