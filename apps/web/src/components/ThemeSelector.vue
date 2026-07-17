@@ -3,7 +3,7 @@
  * 主题管理器 + 可视化设计器 — 单面板三列布局
  * 左侧：主题列表  |  中间：实时预览  |  右侧：编辑控件
  */
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useThemeStore, type CustomTheme } from '../stores/themes'
 import { useEditorStore } from '../stores/editor'
 import { useToast } from '../composables/useToast'
@@ -241,21 +241,56 @@ function cancelCreate() {
 }
 
 // ---------------------------------------------------------------------------
-// Delete
+// Bottom bar actions
 // ---------------------------------------------------------------------------
-const deleteConfirmId = ref<string | null>(null)
+const showExportMenu = ref(false)
+const showDeleteConfirm = ref(false)
+const exportMenuEl = ref<HTMLElement | null>(null)
 
-function confirmDelete() {
-  const id = deleteConfirmId.value
-  if (!id) return
-  themeStore.deleteTheme(id)
-  if (selectedId.value === id) {
+function onDocumentClick(e: MouseEvent) {
+  if (!showExportMenu.value) return
+  if (!exportMenuEl.value) return
+  if (!exportMenuEl.value.contains(e.target as Node)) {
+    showExportMenu.value = false
+  }
+}
+
+function handleExport(type: 'json' | 'css') {
+  showExportMenu.value = false
+  if (!selectedTheme.value) return
+  if (type === 'json') {
+    themeStore.exportTheme(selectedId.value)
+  } else {
+    themeStore.exportThemeCSS(selectedId.value)
+  }
+}
+
+function onDeleteClick() {
+  if (!selectedTheme.value || isBuiltIn.value) return
+  showDeleteConfirm.value = true
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false
+}
+
+function confirmDeleteFromBar() {
+  if (!selectedTheme.value || isBuiltIn.value) return
+  themeStore.deleteTheme(selectedId.value)
+  if (selectedId.value === themeStore.currentThemeId) {
     selectedId.value = themeStore.currentThemeId
   }
   toast.success('主题已删除')
-  deleteConfirmId.value = null
+  showDeleteConfirm.value = false
 }
 
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
 // ---------------------------------------------------------------------------
 // Import / Export
 // ---------------------------------------------------------------------------
@@ -321,25 +356,13 @@ async function handleImportFile(e: Event) {
             :key="t.id"
             class="ts-item ts-item-custom"
             :class="{ active: selectedId === t.id, applied: currentId === t.id }"
+            @click="selectedId = t.id"
           >
-            <!-- Delete confirm -->
-            <template v-if="deleteConfirmId === t.id">
-              <span class="ts-del-text">删除?</span>
-              <button class="ts-del-btn ts-del-yes" @click="confirmDelete">确认</button>
-              <button class="ts-del-btn ts-del-no" @click="deleteConfirmId = null">取消</button>
-            </template>
-            <template v-else>
-              <svg class="ts-item-type-icon ts-item-type-icon--custom" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              <span class="ts-item-name" @click="selectedId = t.id">{{ t.name }}</span>
-              <div class="ts-item-actions">
-                <button class="ts-item-act-btn ts-item-act-btn-danger" title="删除" @click.stop="deleteConfirmId = t.id">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </div>
-              <svg v-if="currentId === t.id" class="ts-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            </template>
+            <svg class="ts-item-type-icon ts-item-type-icon--custom" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            <span class="ts-item-name">{{ t.name }}</span>
+            <svg v-if="currentId === t.id" class="ts-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
 
           <div v-if="search && builtInList.length === 0 && customList.length === 0" class="ts-empty">
@@ -429,21 +452,55 @@ async function handleImportFile(e: Event) {
           </template>
         </div>
 
-        <!-- Action buttons -->
-        <div class="ts-right-footer">
-          <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
-          <button
-            v-if="!isVisualTheme"
-            class="ts-btn ts-btn-copy"
-            @click="duplicateAndEdit"
-          >{{ isBuiltIn ? '复制' : '复制并可视化编辑' }}</button>
-          <button
-            v-if="isVisualTheme || !isBuiltIn"
-            class="ts-btn ts-btn-save"
-            :disabled="!hasUnsavedChanges || isBuiltIn"
-            @click="handleSaveChanges"
-          >保存修改</button>
-          <button class="ts-btn ts-btn-apply" @click="handleApply">应用主题</button>
+        <!-- Action buttons moved to bottom bar -->
+      </div>
+
+      <!-- ========== BOTTOM: Unified action bar ========== -->
+      <div class="ts-bottom-bar">
+        <div class="ts-bottom-left">
+          <template v-if="showDeleteConfirm">
+            <button class="ts-btn ts-btn-delete" @click="confirmDeleteFromBar">确认删除</button>
+            <button class="ts-btn ts-btn-cancel" @click="cancelDelete">取消</button>
+          </template>
+          <template v-else>
+            <button
+              class="ts-btn ts-btn-copy"
+              title="复制并创建自定义主题"
+              @click="duplicateAndEdit"
+            >复制</button>
+            <div class="ts-export-wrap" ref="exportMenuEl">
+              <button class="ts-btn" @click="showExportMenu = !showExportMenu">
+                导出
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <div v-if="showExportMenu" class="ts-export-menu">
+                <button @click="handleExport('json')">导出 JSON</button>
+                <button @click="handleExport('css')">导出 CSS</button>
+              </div>
+            </div>
+            <button
+              class="ts-btn ts-btn-delete"
+              :disabled="isBuiltIn"
+              title="删除自定义主题"
+              @click="onDeleteClick"
+            >删除</button>
+          </template>
+        </div>
+        <div class="ts-bottom-right">
+          <template v-if="showDeleteConfirm">
+            <span class="ts-delete-hint">删除后不可恢复，请确认</span>
+          </template>
+          <template v-else>
+            <button class="ts-btn ts-btn-cancel" @click="emit('close')">取消</button>
+            <button
+              class="ts-btn ts-btn-save"
+              :disabled="!hasUnsavedChanges || isBuiltIn"
+              @click="handleSaveChanges"
+            >保存修改</button>
+            <button class="ts-btn ts-btn-apply" @click="handleApply">应用主题</button>
+          </template>
         </div>
       </div>
     </div>
@@ -500,7 +557,7 @@ async function handleImportFile(e: Event) {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   display: grid;
   grid-template-columns: 240px 1fr 340px;
-  grid-template-rows: 1fr;
+  grid-template-rows: 1fr auto;
   overflow: hidden;
 }
 
@@ -636,45 +693,6 @@ async function handleImportFile(e: Event) {
   flex-shrink: 0;
   color: var(--accent-primary, #07c160);
 }
-
-/* Item actions */
-.ts-item-actions {
-  display: flex;
-  gap: 1px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.ts-item:hover .ts-item-actions { opacity: 1; }
-
-.ts-item-act-btn {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.12s;
-}
-.ts-item-act-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-.ts-item-act-btn-danger:hover { background: color-mix(in srgb, #e53e3e 15%, transparent); color: #e53e3e; }
-
-/* Delete confirm */
-.ts-del-text { font-size: 12px; color: #e53e3e; margin-right: 4px; }
-.ts-del-btn {
-  padding: 2px 8px;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-}
-.ts-del-yes { background: #e53e3e; color: #fff; }
-.ts-del-no { background: var(--bg-tertiary); color: var(--text-secondary); }
 
 .ts-empty {
   text-align: center;
@@ -904,7 +922,90 @@ async function handleImportFile(e: Event) {
   line-height: 1.4;
 }
 
-/* Right footer */
+/* Bottom action bar */
+.ts-bottom-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.ts-bottom-left,
+.ts-bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-bottom-bar .ts-btn {
+  flex: 0 0 auto;
+}
+
+.ts-export-wrap {
+  position: relative;
+}
+
+.ts-export-wrap .ts-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ts-export-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 120px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.ts-export-menu button {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ts-export-menu button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ts-btn-delete {
+  color: #e53e3e;
+  border-color: #e53e3e;
+  background: var(--bg-primary);
+}
+
+.ts-btn-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, #e53e3e 8%, transparent);
+}
+
+.ts-delete-hint {
+  font-size: 12px;
+  color: #e53e3e;
+  font-weight: 500;
+}
+
+/* Right footer (deprecated, kept for safety) */
 .ts-right-footer {
   display: flex;
   gap: 8px;
