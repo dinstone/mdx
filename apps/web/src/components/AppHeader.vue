@@ -20,7 +20,7 @@ defineEmits<{
   <header class="app-header">
     <div class="header-left">
       <div class="logo">
-        <img src="/logo.png" width="32" height="32" alt="logo" />
+        <img src="/logo.png" width="64" height="64" alt="logo" />
         <div class="logo-info">
           <span class="logo-text">MD.X = Edit + Preview + Publish</span>
           <span class="logo-subtitle"> Markdown 公众号排版神器</span>
@@ -68,10 +68,12 @@ defineEmits<{
       </button>
 
       <button class="btn-secondary" @click="$emit('openTheme')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="2" x2="12" y2="22" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette" aria-hidden="true">
+          <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"></path>
+          <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
+          <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle>
+          <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle>
+          <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle>
         </svg>
         <span>主题管理</span>
       </button>

@@ -20,9 +20,8 @@
 </p>
 
 ![screenshot](screenshot/mdx-light.png)
-![screenshot](screenshot/mdx-theme.png)
 
-![screenshot](screenshot/mdx-dark.png)
+![screenshot](screenshot/mdx-theme.png)
 
 ---
 

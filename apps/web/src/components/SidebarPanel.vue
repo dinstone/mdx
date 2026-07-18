@@ -178,7 +178,7 @@ function setSort(mode: 'recent' | 'name-asc') {
 
     <div class="fs-footer">
       <div class="fs-brand">
-        <img src="/logo.png" width="16" height="16" alt="logo" />
+        <img src="/logo.png" width="32" height="32" alt="logo" />
         <span class="fs-brand-text">MDX</span>
       </div>
       <span class="fs-version">v{{ appVersion }}</span>

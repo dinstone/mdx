@@ -4,7 +4,11 @@ Congratulations on generating your Wails3 application! This README will guide yo
 
 ## Getting Started
 
-1. Navigate to your project directory in the terminal.
+1. Navigate to your project directory in the terminal. execute cmd to generate icons.
+
+   ```
+   wails3 generate icons -input build/appicon.png -macfilename build/darwin/icons.icns -windowsfilename build/windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+   ```
 
 2. To run your application in development mode, use the following command:
 

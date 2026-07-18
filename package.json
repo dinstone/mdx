@@ -1,11 +1,11 @@
 {
   "name": "mdx",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @mdx/web dev",
     "dev:wails": "cd apps/wails && wails3 dev",
-    "build": "pnpm --filter @mdx/web build",
+    "build": "pndepm --filter @mdx/web build",
     "build:wails": "cd apps/wails && wails3 build",
     "release": "cd apps/wails && wails3 package clean",
     "lint": "pnpm -r lint"
