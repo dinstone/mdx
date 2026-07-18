@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @mdx/web dev",
     "dev:wails": "cd apps/wails && wails3 dev",
-    "build": "pndepm --filter @mdx/web build",
+    "build": "pnpm --filter @mdx/web build",
     "build:wails": "cd apps/wails && wails3 build",
     "release": "cd apps/wails && wails3 package clean",
     "lint": "pnpm -r lint"

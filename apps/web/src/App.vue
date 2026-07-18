@@ -579,6 +579,7 @@ const workspaceGridColumns = computed(() => {
   gap: 0;
   height: 100%;
   min-height: 0;
+  padding-right: 6px;
 }
 
 .pane-divider {
