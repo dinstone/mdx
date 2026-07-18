@@ -65,7 +65,7 @@ function zoomOut() {
 }
 
 function resetFontSize() {
-  persistFontSize(14)
+  persistFontSize(16)
 }
 
 function getScrollPercent(): number {
