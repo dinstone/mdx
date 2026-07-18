@@ -13,7 +13,10 @@
   专为公众号创作者设计的<b>本地优先</b>编辑器。
 </p>
 
-![screenshot](screenshot/mdx-00.png)
+![screenshot](screenshot/mdx-light.png)
+![screenshot](screenshot/mdx-theme.png)
+
+![screenshot](screenshot/mdx-dark.png)
 
 ---
 
