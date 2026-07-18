@@ -13,6 +13,13 @@
   专为公众号创作者设计的<b>本地优先</b>编辑器。
 </p>
 
+<p align="center">
+  基于 WeMD 的二次开发桌面版 ：</br>
+  <a href="https://wemd.app">🌐 WeMD官网</a> •
+  <a href="https://edit.wemd.app">✏️ WeMD在线使用</a> •
+  <a href="https://wemd.app/docs">📖 WeMD文档</a>
+</p>
+
 ![screenshot](screenshot/mdx-light.png)
 ![screenshot](screenshot/mdx-theme.png)
 

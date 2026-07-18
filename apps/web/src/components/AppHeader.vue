@@ -22,7 +22,7 @@ defineEmits<{
       <div class="logo">
         <img src="/logo.png" width="32" height="32" alt="logo" />
         <div class="logo-info">
-          <span class="logo-text">MD.X=Edit + Preview + Publish</span>
+          <span class="logo-text">MD.X = Edit + Preview + Publish</span>
           <span class="logo-subtitle"> Markdown 公众号排版神器</span>
         </div>
       </div>
