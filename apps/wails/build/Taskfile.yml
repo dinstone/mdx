@@ -70,9 +70,6 @@ tasks:
   sync:version:
     summary: Sync version from root package.json to build/config.yml and update assets
     internal: true
-    vars:
-      VERSION:
-        sh: node -p "require('../../package.json').version"
     cmds:
       # macOS sed: -i '' / Linux sed: -i
       - "sed -i.bak 's/^  version: \"[^\"]*\"/  version: \"{{.VERSION}}\"/' build/config.yml && rm -f build/config.yml.bak"
@@ -229,8 +226,6 @@ tasks:
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"'
     vars:
       BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -buildvcs=false -gcflags=all="-l"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -X ''mdx/internal/service.appVersion={{.VERSION}}''"{{end}}'
-      VERSION:
-        sh: node -p "require('../../package.json').version"
 
   run:server:
     summary: Builds and runs a development server (DEV=true)

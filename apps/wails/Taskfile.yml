@@ -10,6 +10,13 @@ vars:
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: "{{.GOOS | default OS}}"
 
+  # App version, read once from the monorepo root package.json (apps/wails sits two
+  # levels below it). wake merges the root Taskfile's top-level vars into every
+  # included task's scope, so all platforms share this single value instead of
+  # each re-deriving it.
+  VERSION:
+    sh: node -p "const fs=require('fs'),p=require('path');let d=process.cwd();while(d!==p.dirname(d)&&!fs.existsSync(p.join(d,'package.json')))d=p.dirname(d);fs.existsSync(p.join(d,'package.json'))?require(p.join(d,'package.json')).version:''"
+
 includes:
   common: ./build/Taskfile.yml
   windows: ./build/windows/Taskfile.yml
