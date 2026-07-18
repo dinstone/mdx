@@ -151,13 +151,7 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
   color: var(--text-primary);
-}
-
-.logo:hover {
-  transform: translateY(-1px);
 }
 
 .logo-info {
