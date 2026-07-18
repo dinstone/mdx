@@ -66,7 +66,6 @@ func main() {
 		})
 	menu.AddRole(application.EditMenu)
 	menu.AddRole(application.WindowMenu)
-	menu.AddRole(application.HelpMenu)
 	app.Menu.Set(menu)
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
