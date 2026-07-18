@@ -41,6 +41,14 @@ func (s *SystemService) GetAppVersion() string {
 	return appVersion
 }
 
+// AppVersion returns the build-time injected version. It is the package-level
+// accessor used by main.go to seed the updater's current-version baseline, so
+// that the macOS/Windows/Linux updater all compare against the same source of
+// truth (the value set via -ldflags at build time).
+func AppVersion() string {
+	return appVersion
+}
+
 // OpenExternal opens a URL in the default system browser.
 func (s *SystemService) OpenExternal(url string) error {
 	var cmd string

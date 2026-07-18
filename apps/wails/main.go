@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/updater"
+	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 
 	"mdx/internal/service"
 )
@@ -44,6 +47,23 @@ func main() {
 		},
 	})
 
+	// --- In-app updater (Wails3 pkg/updater) ---
+	// 更新源：GitHub Releases（内置 github provider），仓库固定为
+	// github.com/dinstone/mdx。Release 需包含一个 macOS 的 .zip 产物以及
+	// SHA256SUMS 校验和侧车文件（用于 digest 校验）。
+	ghProvider, ghErr := github.New(github.Config{
+		Repository: "dinstone/mdx",
+	})
+	if ghErr != nil {
+		log.Fatalf("updater: github.New: %v", ghErr)
+	}
+	if err := app.Updater.Init(updater.Config{
+		CurrentVersion: currentAppVersion(),
+		Providers:      []updater.Provider{ghProvider},
+	}); err != nil {
+		log.Fatalf("updater: Init: %v", err)
+	}
+
 	menu := app.NewMenu()
 	if runtime.GOOS == "darwin" {
 		menu.AddRole(application.AppMenu)
@@ -66,6 +86,14 @@ func main() {
 		})
 	menu.AddRole(application.EditMenu)
 	menu.AddRole(application.WindowMenu)
+	helpMenu := menu.AddSubmenu("Help")
+	helpMenu.Add("检查更新…").OnClick(func(_ *application.Context) {
+		go func() {
+			if err := app.Updater.CheckAndInstall(context.Background()); err != nil {
+				log.Printf("[updater] check failed: %v", err)
+			}
+		}()
+	})
 	app.Menu.Set(menu)
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
@@ -106,4 +134,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// currentAppVersion returns the running app version, seeded from the build-time
+// injected value in the service package (set via -ldflags at build). This is the
+// baseline the updater compares releases against, so it must match the GitHub
+// release tag (with or without a "v" prefix — the provider normalises it). Using
+// the injected value keeps macOS/Windows/Linux consistent and avoids hardcoding
+// a stale version that would make the updater misreport availability.
+func currentAppVersion() string {
+	return service.AppVersion()
 }
