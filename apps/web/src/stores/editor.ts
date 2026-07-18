@@ -15,6 +15,12 @@ import { useThemeStore } from './themes'
 
 const parser = createMarkdownParser()
 
+/** 自动保存轮询间隔：每 3 秒检查一次 dirty 状态并写盘。 */
+const AUTO_SAVE_INTERVAL_MS = 3000
+
+/** 模块级定时器句柄，避免 HMR / 重复创建 store 时叠加多个 interval。 */
+let autoSaveTimer: ReturnType<typeof setInterval> | null = null
+
 // ---------------------------------------------------------------------------
 // Frontmatter helpers — kept in-store to avoid exposing complexity
 // ---------------------------------------------------------------------------
@@ -248,6 +254,40 @@ export const useEditorStore = defineStore('editor', () => {
     unsavedCache.clear()
   }
 
+  // ---- auto-save: poll dirty state every 3s and persist ----
+  /** 防止 saveFile 还在进行时又触发新一轮保存。 */
+  const _saving = ref(false)
+
+  async function autoSaveTick() {
+    if (_saving.value) return
+    // 仅在存在活动文件且内容被改动（dirty）时才保存
+    if (!filePath.value || !isModified.value) return
+    _saving.value = true
+    try {
+      await saveFile()
+    } catch {
+      // 保存失败保持 isModified=true，下一轮重试
+    } finally {
+      _saving.value = false
+    }
+  }
+
+  function startAutoSave() {
+    // 先清掉可能存在的旧定时器（HMR / 重复初始化），保证全局仅一个
+    if (autoSaveTimer !== null) clearInterval(autoSaveTimer)
+    autoSaveTimer = setInterval(autoSaveTick, AUTO_SAVE_INTERVAL_MS)
+  }
+
+  function stopAutoSave() {
+    if (autoSaveTimer !== null) {
+      clearInterval(autoSaveTimer)
+      autoSaveTimer = null
+    }
+  }
+
+  // 启动 3 秒定时自动保存
+  startAutoSave()
+
   // Auto-load when workspace.activeFileId changes
   watch(
     () => workspace.activeFileId,
@@ -277,5 +317,7 @@ export const useEditorStore = defineStore('editor', () => {
     setTheme,
     setThemeByName,
     reset,
+    startAutoSave,
+    stopAutoSave,
   }
 })
