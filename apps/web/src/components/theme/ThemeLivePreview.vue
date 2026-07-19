@@ -5,6 +5,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
 import { getImageStorage } from '../../services/imageStorage'
+import { katexCssLocalFonts } from '../../utils/katexStyle'
 
 const props = defineProps<{
   css: string
@@ -54,6 +55,18 @@ function hello() {
   console.log("Hello, Markdown!");
 }
 \`\`\`
+
+## 数学公式
+
+行内公式：质能方程 $E = mc^2$
+
+高斯积分：$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$
+
+块级公式：
+
+$$
+\frac{\partial}{\partial t} u(x,t) = \alpha \frac{\partial^2}{\partial x^2} u(x,t)
+$$
 
 ![示例图片](https://img.wemd.app/example.jpg)
 `
@@ -167,8 +180,23 @@ async function updateIframe() {
 
   const gen = ++renderGeneration
   themeStyle.textContent = props.css
+
+  // iframe 沙箱不继承父页面全局 CSS，需独立注入 KaTeX 样式（字体走同源本地打包，
+  // 避免依赖外网 CDN —— 无网络或 WebView 拦截跨域字体时公式会渲染失败）
+  let katexStyle = doc.getElementById('katex-style') as HTMLStyleElement | null
+  if (!katexStyle) {
+    katexStyle = doc.createElement('style')
+    katexStyle.id = 'katex-style'
+    doc.head.appendChild(katexStyle)
+  }
+  katexStyle.textContent = katexCssLocalFonts
+
   const mdHtml = parser.render(props.markdown ?? PREVIEW_MARKDOWN)
-  const html = processHtml(mdHtml, props.css, true)
+  // 把 KaTeX 样式一并交给 juice：否则 juice 只内联主题 CSS，KaTeX 元素会继承主题的
+  // font-family 并被内联成 inline 样式（优先级高于 <head> 里的 .katex 类规则），
+  // 导致公式字体被覆盖、渲染错乱。并入 KaTeX CSS 后，数学字体也会以 inline 形式
+  // 内联（类更具体、排在主题之后而胜出）；<head> 的 katex-style 仍提供 @font-face。
+  const html = processHtml(mdHtml, `${props.css}\n${katexCssLocalFonts}`, true)
   const resolvedHtml = await resolveImageUrls(html)
 
   // 如果期间触发了新渲染，丢弃旧结果，避免旧 blob URL 覆盖新内容
