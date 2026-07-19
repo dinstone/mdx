@@ -16,7 +16,7 @@ const props = defineProps<{
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 
 // 预览用示例 Markdown
-const PREVIEW_MARKDOWN = `# 一级标题示例
+const PREVIEW_MARKDOWN = String.raw`# 一级标题示例
 
 这是一段**加粗文本**、*斜体文本*、++下划线文本++、~~删除线文本~~、==高亮文本==和 [链接示例](https://github)。
 
