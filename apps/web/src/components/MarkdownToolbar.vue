@@ -163,14 +163,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .md-toolbar {
-  height: 50px;
+  min-height: 50px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 24px;
   border-bottom: 1px solid var(--border-light);
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   flex-wrap: wrap;
 }
 

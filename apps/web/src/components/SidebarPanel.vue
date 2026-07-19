@@ -267,6 +267,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   height: 50px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
   padding: 0 24px;
   display: flex;
   align-items: center;
