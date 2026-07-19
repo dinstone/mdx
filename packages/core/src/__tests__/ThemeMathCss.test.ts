@@ -13,7 +13,6 @@ import {
   neoBrutalismTheme,
   receiptTheme,
   sunsetFilmTheme,
-  templateTheme,
 } from "../themes";
 
 const themes = {
@@ -30,7 +29,6 @@ const themes = {
   neoBrutalismTheme,
   receiptTheme,
   sunsetFilmTheme,
-  templateTheme,
 };
 
 describe("theme math css", () => {

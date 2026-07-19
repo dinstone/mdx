@@ -12,4 +12,3 @@ export * from './morandi-forest';
 export * from './neo-brutalism';
 export * from './receipt';
 export * from './sunset-film';
-export * from './template';

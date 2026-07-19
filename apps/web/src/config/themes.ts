@@ -11,7 +11,6 @@ import {
   neoBrutalismTheme,
   receiptTheme,
   sunsetFilmTheme,
-  templateTheme,
 } from "@mdx/core";
 
 /** @deprecated 保留向后兼容，新代码应使用 CustomTheme + themeStore */
@@ -44,7 +43,6 @@ export const builtInThemes: ThemeEntry[] = [
   { id: "neoBrutalism",   name: "新粗野主义", css: neoBrutalismTheme,   isBuiltIn: true, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
   { id: "receipt",        name: "购物小票",   css: receiptTheme,        isBuiltIn: true, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
   { id: "sunsetFilm",     name: "落日胶片",   css: sunsetFilmTheme,     isBuiltIn: true, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
-  { id: "template",       name: "模板",       css: templateTheme,       isBuiltIn: true, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
 ];
 
 export const defaultThemeEntry = builtInThemes[0];
