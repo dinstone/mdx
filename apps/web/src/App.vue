@@ -229,9 +229,9 @@ const editorContent = computed({
 })
 
 async function copyHtml() {
-  if (!editor.renderedHtml) return
+  if (!editor.exportHtml) return
   try {
-    await navigator.clipboard.writeText(editor.renderedHtml)
+    await navigator.clipboard.writeText(editor.exportHtml)
     toast.success('已复制 HTML')
   } catch {
     const textarea = document.createElement('textarea')

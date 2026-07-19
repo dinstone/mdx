@@ -8,6 +8,7 @@
 
 import { getImageStorage } from './imageStorage'
 import { blobToPortableBase64 } from './imagePipeline'
+import { rasterizeMathToImages } from '../utils/mathToImage'
 
 /**
  * 将 HTML 中的 img:// 短链接替换为 Base64 data-URI
@@ -126,7 +127,14 @@ export interface CopyToWechatOptions {
 export async function buildInlinedWechatHtml(html: string): Promise<string> {
   if (!html) return html
   const inlined = await inlineImageBase64(html)
-  return convertCheckboxesToEmoji(inlined)
+  const withEmoji = convertCheckboxesToEmoji(inlined)
+  // 公式转图片，兼容公众号（会过滤 <style> / 外部字体，纯 CSS 公式无法渲染）
+  try {
+    return await rasterizeMathToImages(withEmoji)
+  } catch (e) {
+    console.warn('[WechatCopy] 公式转图片失败，降级为未转图 HTML:', e)
+    return withEmoji
+  }
 }
 
 /**

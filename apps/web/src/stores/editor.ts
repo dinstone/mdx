@@ -9,6 +9,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
+import { withKatexStyle } from '../utils/katexStyle'
 import { getBridge, getBrowserBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
 import { useThemeStore } from './themes'
@@ -127,6 +128,13 @@ export const useEditorStore = defineStore('editor', () => {
     const mdHtml = parser.render(rawContent.value)
     return processHtml(mdHtml, theme.currentCSS, true, true)
   })
+
+  /**
+   * 通用 HTML 导出/复制：在 renderedHtml 基础上嵌入 KaTeX 样式，
+   * 使复制出的独立 HTML 片段也能正确渲染数学公式（字体走 CDN）。
+   * 实时预览走全局 katex.min.css，不需要这段内嵌样式。
+   */
+  const exportHtml = computed(() => withKatexStyle(renderedHtml.value))
 
   // ---- internal helpers ----
 
@@ -309,6 +317,7 @@ export const useEditorStore = defineStore('editor', () => {
     fileName,
     renderedHtml,
     wechatHtml,
+    exportHtml,
     currentThemeName,
     // actions
     loadFile,
