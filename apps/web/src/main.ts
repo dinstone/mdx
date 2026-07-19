@@ -6,6 +6,10 @@
 // back to BrowserBridge (IndexedDB).
 
 import "./styles/theme.css";
+// KaTeX stylesheet: math formulas are rendered by the @mdx/core markdown
+// parser via KaTeX, but the rendered HTML needs this CSS (fonts + layout)
+// or formulas appear broken/overlapping in the live preview.
+import "katex/dist/katex.min.css";
 
 import { createApp } from "vue";
 import { createPinia } from "pinia";

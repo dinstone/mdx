@@ -6,3 +6,4 @@ node_modules/
 packages/core/node_modules/
 apps/wails/mdx
 .workbuddy/
+apps/web/dist-test/

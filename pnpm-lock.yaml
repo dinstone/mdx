@@ -37,6 +37,9 @@ importers:
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
+      katex:
+        specifier: ^0.16.27
+        version: 0.16.47
       mermaid:
         specifier: ^11.12.2
         version: 11.16.0
