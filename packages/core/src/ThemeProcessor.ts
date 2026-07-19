@@ -1,5 +1,48 @@
 import juice from "juice";
 
+/**
+ * 从标题 HTML 内容生成稳定 slug。保留中文字符、数字、字母，其余转连字符。
+ */
+function slugify(text: string): string {
+  const plain = String(text)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .trim();
+
+  if (!plain) return "heading";
+
+  return plain
+    .replace(/[^\p{L}\p{N}\s-]+/gu, " ")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .toLowerCase();
+}
+
+/**
+ * 为 h1-h6 注入唯一 id 锚点。
+ */
+function injectHeadingIds(html: string): string {
+  const seen = new Map<string, number>();
+  return html.replace(
+    /<h([1-6])(\s+[^>]*)?>([\s\S]*?)<\/h\1>/gi,
+    (match: string, level: string, attrs: string | undefined, inner: string) => {
+      const attributes = attrs || "";
+      if (/\sid=["']/.test(attributes)) return match;
+
+      let base = slugify(inner) || "heading";
+      const count = seen.get(base) || 0;
+      seen.set(base, count + 1);
+      const id = count === 0 ? base : `${base}-${count}`;
+
+      return `<h${level}${attributes} id="${id}">${inner}</h${level}>`;
+    },
+  );
+}
+
 const DATA_TOOL = "WeMD编辑器";
 const SECTION_ID = "wemd";
 
@@ -47,6 +90,9 @@ export const processHtml = (
       return `<${tag} data-tool="${DATA_TOOL}"${attributes}>`;
     });
   });
+
+  // 为标题注入锚点，便于预览区目录导航
+  html = injectHeadingIds(html);
 
   // 处理 MathJax 相关的替换
   html = html.replace(

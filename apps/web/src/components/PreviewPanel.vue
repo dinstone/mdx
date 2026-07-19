@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { getImageStorage } from '../services/imageStorage'
+import PreviewToc from './PreviewToc.vue'
 
 const props = defineProps<{
   html: string
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 const container = ref<HTMLDivElement>()
 const scrollContainer = ref<HTMLDivElement>()
 const isProgrammaticScroll = ref(false)
+const showToc = ref(false)
 
 let mermaidReady = false
 
@@ -104,6 +106,32 @@ function onPreviewScroll() {
   emit('scroll-sync', getScrollPercent())
 }
 
+function toggleToc() {
+  showToc.value = !showToc.value
+}
+
+// 点击目录浮层以外的区域时自动收起
+function onPreviewBodyClick(e: MouseEvent) {
+  if (!showToc.value) return
+  const target = e.target as HTMLElement | null
+  if (target && target.closest('.preview-toc')) return
+  showToc.value = false
+}
+
+function navigateToHeading(id: string) {
+  const scroller = scrollContainer.value
+  if (!scroller || !container.value) return
+
+  const target = container.value.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
+  if (!target) return
+
+  // 滚动到标题上方留出一点呼吸空间
+  const offset = 16
+  const top = target.offsetTop - scroller.offsetTop - offset
+  isProgrammaticScroll.value = true
+  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+}
+
 watch(
   () => props.syncScrollPercent,
   (percent) => {
@@ -130,13 +158,41 @@ onBeforeUnmount(() => {
 <template>
   <div class="markdown-preview">
     <div class="preview-header">
-      <span class="preview-title">实时预览</span>
-      <span class="preview-subtitle">微信排版效果</span>
-    </div>
-    <div ref="scrollContainer" class="preview-container">
-      <div class="preview-content">
-        <div ref="container" v-html="html" />
+      <div class="preview-header__left">
+        <span class="preview-title">实时预览</span>
+        <span class="preview-subtitle">微信排版效果</span>
       </div>
+      <button
+        class="preview-header__toc-btn"
+        :class="{ 'preview-header__toc-btn--active': showToc }"
+        title="目录"
+        aria-label="目录"
+        @click="toggleToc"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <circle cx="3.5" cy="6" r="1" />
+          <circle cx="3.5" cy="12" r="1" />
+          <circle cx="3.5" cy="18" r="1" />
+        </svg>
+      </button>
+    </div>
+    <div class="preview-body" @click="onPreviewBodyClick">
+      <div ref="scrollContainer" class="preview-container" :class="{ 'preview-container--with-toc': showToc }">
+        <div class="preview-content">
+          <div ref="container" v-html="html" />
+        </div>
+      </div>
+      <PreviewToc
+        :html="html"
+        :container="container"
+        :scroll-container="scrollContainer"
+        :visible="showToc"
+        @navigate="navigateToHeading"
+        @close="toggleToc"
+      />
     </div>
   </div>
 </template>
@@ -159,7 +215,51 @@ onBeforeUnmount(() => {
   background: var(--bg-primary);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+}
+
+.preview-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-header__toc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-header__toc-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.preview-header__toc-btn:hover {
+  border-color: var(--accent-primary, #07c160);
+  color: var(--accent-primary, #07c160);
+}
+
+.preview-header__toc-btn--active {
+  background: var(--accent-primary, #07c160);
+  color: #ffffff;
+  border-color: var(--accent-primary, #07c160);
+}
+
+.preview-header__toc-btn--active:hover {
+  color: #ffffff;
+  opacity: 0.9;
 }
 
 .preview-title {
@@ -178,11 +278,20 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-sm);
 }
 
+.preview-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
 .preview-container {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
   padding: 2px 0;
+  min-width: 0;
 }
 
 .preview-content {
