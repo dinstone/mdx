@@ -20,7 +20,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'navigate': [id: string]
-  'close': []
 }>()
 
 const activeId = ref<string>('')
@@ -124,9 +123,6 @@ function itemStyle(level: number) {
   <div class="preview-toc" :class="{ 'preview-toc--open': visible }">
     <div class="preview-toc__header">
       <span class="preview-toc__title">目录</span>
-      <button class="preview-toc__close" title="收起目录" @click="emit('close')">
-        ×
-      </button>
     </div>
     <ul class="preview-toc__list">
       <li
@@ -171,31 +167,13 @@ function itemStyle(level: number) {
   height: 48px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 8px 0 16px;
+  justify-content: center;
+  padding: 0 16px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
-}
-
-.preview-toc__close {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: var(--radius-sm, 4px);
-  transition: all 0.2s ease;
-}
-
-.preview-toc__close:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
 }
 
 .preview-toc__list {

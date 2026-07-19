@@ -191,7 +191,6 @@ onBeforeUnmount(() => {
         :scroll-container="scrollContainer"
         :visible="showToc"
         @navigate="navigateToHeading"
-        @close="toggleToc"
       />
     </div>
   </div>
