@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "0.8.2"
+		"file_version": "0.8.8"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.8.2",
+			"ProductVersion": "0.8.8",
 			"CompanyName": "dinstone ltd",
 			"FileDescription": "A Markdown editor built with Wails 3",
 			"LegalCopyright": "(c) 2025, dinstone ltd",
