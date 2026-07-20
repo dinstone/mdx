@@ -120,11 +120,35 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
+      # 构建前端并拷贝到 Go embed 目录。
+      #
+      # 前端【源码】在 apps/web：本步骤的 common:build:frontend 会先 cd 到
+      # apps/web 执行 `pnpm run build`（即 vue-tsc + vite build，与根 package.json
+      # 的 `pnpm build` 完全一致），再把产物 apps/web/dist 拷贝到
+      # apps/wails/frontend/dist。
+      #
+      # 为什么不是只跑 `pnpm build`：main.go:17 用
+      #   //go:embed all:frontend/dist
+      # 把前端打进二进制，而 embed 路径是【相对于 main.go 所在目录】解析的，即
+      # apps/wails/frontend/dist —— 不是 apps/web/dist。`pnpm build` 只产出
+      # apps/web/dist，不会做拷贝，因此裸跑它会导致 go build 报
+      # “pattern all:frontend/dist: no matching files found”。拷贝这一步仅由
+      # common:build:frontend 完成，所以必须走这个 task，而不能只调 pnpm。
+      #
+      # 为什么必须显式跑（而非依赖各平台 task 的传递依赖）：build:frontend 标了
+      # run:once + generates: dist/**/*，当 apps/web/dist 已存在时（本地残留或
+      # 缓存命中），wake 可能判定“已最新”而整条跳过，连带拷贝也省略 →
+      # apps/wails/frontend/dist 缺失。显式先跑一遍保证 embed 目录一定存在；后续
+      # 各平台 task 检测到产物已最新会自然跳过该依赖，不会重复构建。
+      - name: Build frontend (embed assets)
+        working-directory: apps/wails
+        run: wails3 task common:build:frontend
+
       # ---- macOS：构建 universal .app 并拆成按架构命名的 zip（更新器需要）----
       - name: Build & package (macOS universal)
         if: runner.os == 'macOS'
         working-directory: apps/wails
-        run: wails3 task package:universal
+        run: wails3 task darwin:package:universal
 
       - name: Package macOS artifacts
         if: runner.os == 'macOS'
@@ -171,7 +195,7 @@ jobs:
         if: runner.os == 'Linux'
         continue-on-error: true
         working-directory: apps/wails
-        run: wails3 tool package -format deb -config build/linux/nfpm/nfpm.yaml -out bin
+        run: wails3 tool package -name MDX -format deb -config build/linux/nfpm/nfpm.yaml -out bin
 
       - name: Package Linux artifacts
         if: runner.os == 'Linux'
