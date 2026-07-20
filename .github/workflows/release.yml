@@ -1,0 +1,237 @@
+# =============================================================================
+# MDX · GitHub Actions CI/CD
+#
+# 触发时机：
+#   1) 推送 Tag（v*.*.*）→ 自动构建三平台、打包并发布 GitHub Release
+#      （含应用内更新所需的 macOS 按架构 .zip + SHA256SUMS）
+#   2) 合并 / 推送 master → 仅做编译 + 测试验证（不发布 Release）
+#
+# 构建链路（与本地一致）：
+#   wails3(task) → build:frontend(pnpm build @mdx/web，源码经 vite alias 直引
+#   packages/core/src) → go build(CGO) → 打包成 .app/.exe/二进制
+#
+# 重要约定（否则应用内更新器拿不到包）：
+#   - 打 Tag 前请先把根 package.json 的 version 改到对应版本，
+#     因为二进制里的版本号由根 package.json 经 ldflags 注入，
+#     更新器会比较“已装版本 < Release Tag”，不一致会误判。
+#   - macOS 产物必须按架构命名：MDX-darwin-arm64.zip / MDX-darwin-amd64.zip，
+#     内含 .app 顶层目录（更新器 DefaultAssetMatcher 按 platform+arch 匹配）。
+#   - 如需让更新器校验完整性，请在 apps/wails/main.go 的 github.New 里加
+#     ChecksumAsset: "SHA256SUMS"（本流程会生成该侧车文件）。
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"          # 打 Tag → 构建 + 发布
+    branches:
+      - master        # 合并到 master → 仅 CI 验证
+
+# 发布 Release 需要写权限
+permissions:
+  contents: write
+
+# 避免同一 ref 的多次运行互相覆盖
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # 与 apps/wails/go.mod 中 wails v3 版本保持一致
+  WAILS3_VERSION: v3.0.0-alpha2.111
+  GO_VERSION: "1.25"
+  NODE_VERSION: "22"
+  PNPM_VERSION: "9"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 测试（所有 push 都跑，快速暴露回归）
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test (core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Run core unit tests
+        run: pnpm --filter @mdx/core test run
+
+  # ---------------------------------------------------------------------------
+  # 构建矩阵：每个 OS 原生编译对应平台（Wails 需要本机工具链，无法纯交叉）
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false          # 某个平台失败不影响其它平台
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # 安装 wails3 CLI（构建/打包脚本依赖它做 task 调度与代码生成）
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
+
+      - name: Add GOBIN to PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+        shell: bash
+
+      # Linux 需要 C 编译器（CGO）与图标转换工具（图标资源已提交，正常会被跳过）
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc librsvg2-bin
+
+      # Windows NSIS 安装包构建需要 makensis（best-effort，失败不影响 .exe 产物）
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
+        run: choco install nsis -y
+
+      # 安装整个 workspace 依赖（含 @mdx/web / @mdx/core）
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      # ---- macOS：构建 universal .app 并拆成按架构命名的 zip（更新器需要）----
+      - name: Build & package (macOS universal)
+        if: runner.os == 'macOS'
+        working-directory: apps/wails
+        run: wails3 task package:universal
+
+      - name: Package macOS artifacts
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/wails/bin
+          # 同一定点 universal 二进制对 arm64 / amd64 都能跑，复制成两份按架构命名
+          # ditto --keepParent 保证解压后顶层就是 MDX.app（更新器期望的结构）
+          ditto -c -k --keepParent MDX.app MDX-darwin-arm64.zip
+          cp MDX-darwin-arm64.zip MDX-darwin-amd64.zip
+          mkdir -p "$GITHUB_WORKSPACE/dist-release/macOS"
+          mv MDX-darwin-arm64.zip MDX-darwin-amd64.zip "$GITHUB_WORKSPACE/dist-release/macOS/"
+
+      # ---- Windows：原生交叉编译（CGO 默认关闭，不需要 Docker）----
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        working-directory: apps/wails
+        run: wails3 task build
+
+      - name: Package Windows installer (best-effort)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        working-directory: apps/wails
+        run: wails3 task package        # 仅生成 NSIS 安装包，二进制已 build 过
+
+      - name: Package Windows artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE/dist-release/Windows" | Out-Null
+          Compress-Archive -Path "apps/wails/bin/MDX.exe" -DestinationPath "$env:GITHUB_WORKSPACE/dist-release/Windows/MDX-windows-amd64.zip" -Force
+          # 若存在 NSIS 安装包则一并收入（命名形如 *-installer.exe）
+          $installer = Get-ChildItem -Path "apps/wails/bin" -Filter "*installer.exe" | Select-Object -First 1
+          if ($installer) { Copy-Item $installer.FullName "$env:GITHUB_WORKSPACE/dist-release/Windows/" }
+
+      # ---- Linux：CGO 原生编译（ubuntu 自带 gcc）----
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        working-directory: apps/wails
+        run: wails3 task build
+
+      - name: Package Linux deb (best-effort)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        working-directory: apps/wails
+        run: wails3 tool package -format deb -config build/linux/nfpm/nfpm.yaml -out bin
+
+      - name: Package Linux artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/dist-release/Linux"
+          tar -czf "$GITHUB_WORKSPACE/dist-release/Linux/MDX-linux-amd64.tar.gz" -C apps/wails/bin MDX
+          # 若存在 .deb 则一并收入
+          if ls apps/wails/bin/*.deb 1>/dev/null 2>&1; then
+            cp apps/wails/bin/*.deb "$GITHUB_WORKSPACE/dist-release/Linux/"
+          fi
+
+      # 上传本平台产物（release 任务会汇总）
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdx-${{ matrix.os }}
+          path: dist-release/${{ runner.os }}/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 发布：仅当推送 Tag 时运行，汇总三平台产物 + 生成 SHA256SUMS 后建 Release
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dl
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          # 展平：dl/mdx-<OS>/dist-release/<OS>/MDX-*.zip|tar.gz|deb
+          find ./dl -type f \( -name "MDX-*" -o -name "*.deb" \) -exec cp {} release-assets/ \;
+          echo "=== collected assets ==="
+          ls -la release-assets
+
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum * > SHA256SUMS
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MDX ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release-assets/*
