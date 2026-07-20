@@ -92,8 +92,11 @@ tasks:
         sh: 'wails3 tool docker-mounts'
 
   build:universal:
-    summary: Builds darwin universal binary (arm64 + amd64)
-    deps:
+    summary: Builds darwin universal binary (arm64 + amd64), sequentially to cap memory
+    # 串行而非并发构建两个架构：dual CGO `go build` 同时跑会瞬间占满 CI runner 内存，
+    # 触发 OOM / SIGKILL——表现为 go build 静默 exit status 1、且 stderr 无任何报错输出。
+    # 串行后内存峰值=单架构构建，彻底规避；代价是构建多花约一倍时间。
+    cmds:
       - task: build
         vars:
           ARCH: amd64
@@ -102,7 +105,6 @@ tasks:
         vars:
           ARCH: arm64
           OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-    cmds:
       - task: '{{if eq OS "darwin"}}build:universal:lipo:native{{else}}build:universal:lipo:go{{end}}'
 
   build:universal:lipo:native:
