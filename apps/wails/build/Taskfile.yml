@@ -161,6 +161,11 @@ tasks:
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` from an image
+    # 图标资源已提交进仓库（darwin/icons.icns、windows/icon.ico），由打包步骤直接拷贝使用，
+    # 无需在 CI 重新生成。原命令 `wails3 generate icons` 在 macOS 上调用 actool
+    #（Xcode 资源目录编译器），而 GitHub Actions macos runner 的 DEVELOPER_DIR 默认指向
+    # Command Line Tools（不含 actool），导致 “failed to run actool: exit status 1”。
+    # 改为 no-op，复用已提交文件，彻底规避该报错。
     run: once
     dir: build
     sources:
@@ -170,7 +175,7 @@ tasks:
       - "darwin/icons.icns"
       - "windows/icon.ico"
     cmds:
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+      - 'echo "icons already committed (darwin/icons.icns / windows/icon.ico); skipping generation to avoid actool error"'
 
   dev:frontend:
     summary: Runs the frontend in development mode
