@@ -2,7 +2,7 @@
 # MDX · GitHub Actions CI/CD
 #
 # 触发时机：
-#   1) 推送 Tag（v*.*.*）→ 自动构建三平台、打包并发布 GitHub Release
+#   1) 推送 Tag（v*.*.*）→ 自动构建 macOS / Windows 两平台、打包并发布 GitHub Release
 #      （含应用内更新所需的 macOS 按架构 .zip + SHA256SUMS）
 #   2) 合并 / 推送 master → 仅做编译 + 测试验证（不发布 Release）
 #
@@ -67,7 +67,8 @@ jobs:
         run: pnpm --filter @mdx/core test run
 
   # ---------------------------------------------------------------------------
-  # 构建矩阵：每个 OS 原生编译对应平台（Wails 需要本机工具链，无法纯交叉）
+  # 构建矩阵：macOS 与 Windows 两个平台原生编译（Wails 需要本机工具链，无法纯交叉；
+  # Linux 桌面构建已移除）
   # ---------------------------------------------------------------------------
   build:
     name: Build (${{ matrix.os }})
@@ -75,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false          # 某个平台失败不影响其它平台
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -105,11 +106,6 @@ jobs:
       - name: Add GOBIN to PATH
         run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
         shell: bash
-
-      # Linux 需要 C 编译器（CGO）与图标转换工具（图标资源已提交，正常会被跳过）
-      - name: Install Linux build deps
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y gcc librsvg2-bin
 
       # Windows NSIS 安装包构建需要 makensis（best-effort，失败不影响 .exe 产物）
       - name: Install NSIS (Windows)
@@ -193,30 +189,6 @@ jobs:
           $installer = Get-ChildItem -Path "apps/wails/bin" -Filter "*installer.exe" | Select-Object -First 1
           if ($installer) { Copy-Item $installer.FullName "$env:GITHUB_WORKSPACE/dist-release/Windows/" }
 
-      # ---- Linux：CGO 原生编译（ubuntu 自带 gcc）----
-      - name: Build (Linux)
-        if: runner.os == 'Linux'
-        working-directory: apps/wails
-        run: wails3 task build
-
-      - name: Package Linux deb (best-effort)
-        if: runner.os == 'Linux'
-        continue-on-error: true
-        working-directory: apps/wails
-        run: wails3 tool package -name MDX -format deb -config build/linux/nfpm/nfpm.yaml -out bin
-
-      - name: Package Linux artifacts
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/dist-release/Linux"
-          tar -czf "$GITHUB_WORKSPACE/dist-release/Linux/MDX-linux-amd64.tar.gz" -C apps/wails/bin MDX
-          # 若存在 .deb 则一并收入
-          if ls apps/wails/bin/*.deb 1>/dev/null 2>&1; then
-            cp apps/wails/bin/*.deb "$GITHUB_WORKSPACE/dist-release/Linux/"
-          fi
-
       # 上传本平台产物（release 任务会汇总）
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -227,7 +199,7 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # 发布：仅当推送 Tag 时运行，汇总三平台产物 + 生成 SHA256SUMS 后建 Release
+  # 发布：仅当推送 Tag 时运行，汇总两平台（macOS / Windows）产物 + 生成 SHA256SUMS 后建 Release
   # ---------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
