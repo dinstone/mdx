@@ -116,29 +116,38 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      # 构建前端并拷贝到 Go embed 目录。
+      # 构建前端并拷贝到 Go embed 目录（apps/wails/frontend/dist）。
       #
-      # 前端【源码】在 apps/web：本步骤的 common:build:frontend 会先 cd 到
-      # apps/web 执行 `pnpm run build`（即 vue-tsc + vite build，与根 package.json
-      # 的 `pnpm build` 完全一致），再把产物 apps/web/dist 拷贝到
-      # apps/wails/frontend/dist。
+      # 关键点：这里用【显式 shell 命令】完成，而不是依赖 wails3 的
+      # common:build:frontend task。原因（本地已复现）：
+      #   common:build:frontend 标了 run:once，而 darwin:package:universal 会为
+      #   amd64 / arm64 各触发一次 build:frontend。wake 的 run:once 在“同一 task 被
+      #   多个架构的构建共享依赖”场景下，会把该 task 的 cmds（pnpm build + 拷贝）
+      #   整条跳过——单架构 darwin:build:native 正常，但双架构 package:universal 下
+      #   build:frontend 的拷贝步被吞，apps/wails/frontend/dist 从未生成，go build
+      #   报 “pattern all:frontend/dist: no matching files found”。
+      #   显式 shell 不受 wake run:once 影响，保证 embed 目录一定存在；后续
+      #   package:universal 无论是否跳过其 build:frontend 依赖，go build 都能找到文件。
       #
-      # 为什么不是只跑 `pnpm build`：main.go:17 用
+      # 前端【源码】在 apps/web：apps/web 用 Vite 构建，再把产物拷贝到
+      # apps/wails/frontend/dist。为什么不能只跑 `pnpm build`：main.go:17 用
       #   //go:embed all:frontend/dist
       # 把前端打进二进制，而 embed 路径是【相对于 main.go 所在目录】解析的，即
-      # apps/wails/frontend/dist —— 不是 apps/web/dist。`pnpm build` 只产出
-      # apps/web/dist，不会做拷贝，因此裸跑它会导致 go build 报
-      # “pattern all:frontend/dist: no matching files found”。拷贝这一步仅由
-      # common:build:frontend 完成，所以必须走这个 task，而不能只调 pnpm。
-      #
-      # 为什么必须显式跑（而非依赖各平台 task 的传递依赖）：build:frontend 标了
-      # run:once + generates: dist/**/*，当 apps/web/dist 已存在时（本地残留或
-      # 缓存命中），wake 可能判定“已最新”而整条跳过，连带拷贝也省略 →
-      # apps/wails/frontend/dist 缺失。显式先跑一遍保证 embed 目录一定存在；后续
-      # 各平台 task 检测到产物已最新会自然跳过该依赖，不会重复构建。
+      # apps/wails/frontend/dist —— 不是 apps/web/dist。裸跑 pnpm build 只产出
+      # apps/web/dist，不做拷贝就会触发上面的嵌入错误。
       - name: Build frontend (embed assets)
-        working-directory: apps/wails
-        run: wails3 task common:build:frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/apps/wails"
+          # 1) 生成 Go<->TS bindings（go build 依赖；CI 日志已验证可正常生成）
+          wails3 generate bindings \
+            -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s -X '\''mdx/internal/service.appVersion=0.8.2'\''"' \
+            -clean=true -ts -i -d ../web/bindings
+          # 2) 构建前端（源码在 apps/web）并拷贝到 Go embed 目录
+          ( cd ../web && pnpm run build )
+          rm -rf frontend/dist
+          cp -r ../web/dist frontend/
 
       # ---- macOS：构建 universal .app 并拆成按架构命名的 zip（更新器需要）----
       # 选完整 Xcode：wails3 generate icons 内部调用 actool（Xcode 资源目录编译器），
