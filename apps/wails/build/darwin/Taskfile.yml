@@ -36,7 +36,12 @@ tasks:
             ref: .OBFUSCATED
           DEV:
             ref: .DEV
-      - task: common:generate:icons
+      # 不在构建流程里生成图标：wails3 generate icons 在 macOS 调用 actool，CI 的
+      # macos runner（DEVELOPER_DIR 指向 Command Line Tools，无 actool）会报
+      # “failed to run actool: exit status 1”。图标 darwin/icons.icns 已提交进仓库，
+      # 由 create:app:bundle 直接拷贝使用。需要重新生成图标时手动跑
+      # `wails3 task common:generate:icons`（命令本身保留在 build/Taskfile.yml）。
+      # - task: common:generate:icons
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
@@ -62,7 +67,8 @@ tasks:
         vars:
           OBFUSCATED:
             ref: .OBFUSCATED
-      - task: common:generate:icons
+      # 同 build:native：跳过图标生成，直接复用已提交的 darwin/icons.icns（规避 actool）。
+      # - task: common:generate:icons
     preconditions:
       - sh: docker info > /dev/null 2>&1
         msg: "Docker is required for cross-compilation. Please install Docker."
