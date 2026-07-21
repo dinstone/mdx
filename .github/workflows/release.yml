@@ -161,10 +161,26 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/wails/bin
-          # 同一定点 universal 二进制对 arm64 / amd64 都能跑，复制成两份按架构命名
-          # ditto --keepParent 保证解压后顶层就是 MDX.app（更新器期望的结构）
-          ditto -c -k --keepParent MDX.app MDX-darwin-arm64.zip
-          cp MDX-darwin-arm64.zip MDX-darwin-amd64.zip
+          APP=MDX.app
+          # 真瘦身：universal 二进制 ≈ arm64 + amd64 之和（实测约 33MB）。
+          # 拆成单架构后各自只有一半体积，arm64 用户下载≈17MB 而非 33MB。
+          # 关键：替换 .app 内的二进制后，原 ad-hoc 签名失效，必须重新 codesign，
+          # 否则用户打开会报“app 已损坏”。lipo 对 Intel 切片命名为 x86_64（非 amd64）。
+          for SLICE in arm64 x86_64; do
+            ZIPARCH=$( [ "$SLICE" = "x86_64" ] && echo amd64 || echo arm64 )
+            # 1) 复制一份 app bundle 作为该架构的载体
+            cp -R "$APP" "MDX-${SLICE}.app"
+            # 2) 从 universal 二进制取出单架构切片
+            lipo -extract "$SLICE" "$APP/Contents/MacOS/MDX" \
+              -output "MDX-${SLICE}.app/Contents/MacOS/MDX"
+            # 3) 剥离本地符号进一步瘦身（构建时已带 -w -s，这里去非全局符号）
+            strip -x "MDX-${SLICE}.app/Contents/MacOS/MDX"
+            # 4) 重签：替换二进制后签名必须更新，否则运行报“已损坏”
+            codesign --force --deep --sign - "MDX-${SLICE}.app"
+            # 5) 打包，顶层即 MDX.app（更新器 DefaultAssetMatcher 期望的结构）
+            ditto -c -k --keepParent "MDX-${SLICE}.app" "MDX-darwin-${ZIPARCH}.zip"
+            rm -rf "MDX-${SLICE}.app"
+          done
           mkdir -p "$GITHUB_WORKSPACE/dist-release/macOS"
           mv MDX-darwin-arm64.zip MDX-darwin-amd64.zip "$GITHUB_WORKSPACE/dist-release/macOS/"
 
