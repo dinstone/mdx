@@ -26,12 +26,12 @@ tasks:
   build:native:
     summary: Builds the application natively on macOS
     internal: true
+    # 前端构建放在 cmds 第一个顺序执行（不能放 deps：deps 与 cmds 并行，会导致
+    # go build 在 cp 完成前启动而找不到 embed 的 frontend/dist）。这样所有调用
+    # build:native 的入口（build / package / build:universal）都自动覆盖前端，
+    # 且 common:build:frontend 标了 run:once + generates，双架构只构建一次。
     deps:
       - task: common:go:mod:tidy
-      # 前端构建不再放这里：build:native 会被 build:universal 为 amd64/arm64 各调用一次，
-      # common:build:frontend 的 run:once 会在“双架构共享同一依赖”场景下把拷贝步整条
-      # 跳过，导致 apps/wails/frontend/dist 缺失。前端改由 build:universal 的顶层依赖
-      # 统一构建一次（见 build:universal 的 deps）。
       # 不在构建流程里生成图标：wails3 generate icons 在 macOS 调用 actool，CI 的
       # macos runner（DEVELOPER_DIR 指向 Command Line Tools，无 actool）会报
       # “failed to run actool: exit status 1”。图标 darwin/icons.icns 已提交进仓库，
@@ -42,6 +42,7 @@ tasks:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
+      - task: common:build:frontend
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"'
     vars:
       BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -X ''mdx/internal/service.appVersion={{.VERSION}}''"{{end}}'
@@ -89,13 +90,11 @@ tasks:
     # 串行而非并发构建两个架构：dual CGO `go build` 同时跑会瞬间占满 CI runner 内存，
     # 触发 OOM / SIGKILL——表现为 go build 静默 exit status 1、且 stderr 无任何报错输出。
     # 串行后内存峰值=单架构构建，彻底规避；代价是构建多花约一倍时间。
-    #
-    # 前端构建必须放在 cmds 的第一个顺序步骤，不能放 deps：wake/go-task 的 deps
-    # 与 cmds 是并行执行的，若把 common:build:frontend 放在 deps，go build 可能在
-    # cp 拷贝完成前就启动，导致 "pattern all:frontend/dist: no matching files"。
-    # 放在 cmds 第一个顺序执行，可确保 frontend/dist 已就绪再开始双架构编译。
+    # 前端构建由 build:native 自带（见 build:native 的 cmds 第一个），这里不再重复：
+    # build:universal 为 amd64/arm64 各调一次 build:native，common:build:frontend
+    # 标了 run:once，第二次调用跳过 cp，但第一次已生成 apps/wails/frontend/dist，
+    # 两个架构的 go build 都能找到。
     cmds:
-      - task: common:build:frontend
       - task: build
         vars:
           ARCH: amd64
@@ -122,10 +121,8 @@ tasks:
 
   package:
     summary: Packages the application into a `.app` bundle
-    # 前端构建必须放在 cmds 顺序执行，不能放 deps（deps 与 cmds 并行，会导致
-    # go build 在 cp 完成前启动而找不到 frontend/dist）。
+    # 前端构建由 build:native 自带（package → build → build:native），无需在此重复。
     cmds:
-      - task: common:build:frontend
       - task: build
       - task: create:app:bundle
 

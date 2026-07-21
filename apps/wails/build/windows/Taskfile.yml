@@ -17,17 +17,8 @@ vars:
 tasks:
   build:
     summary: Builds the application for Windows
-    # 前端构建必须放在 cmds 顺序执行，不能放 deps（deps 与 cmds 并行，会导致
-    # go build 在 cp 完成前启动而找不到 frontend/dist）。
+    # 前端构建由 build:native / build:docker 自带（见各自 cmds 第一个），这里不再重复。
     cmds:
-      - task: common:build:frontend
-        vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
-          OBFUSCATED:
-            ref: .OBFUSCATED
-          DEV:
-            ref: .DEV
       # Auto-detect CGO: if CGO_ENABLED=1, use Docker; otherwise use native Go cross-compile
       - task: '{{if and (ne OS "windows") (eq .CGO_ENABLED "1")}}build:docker{{else}}build:native{{end}}'
         vars:
@@ -43,7 +34,8 @@ tasks:
   build:native:
     summary: Builds the application using native Go cross-compilation
     internal: true
-    # 前端构建由 build 顶层 cmds 顺序完成，避免与 go build 并行导致找不到 embed。
+    # 前端构建放在 cmds 第一个顺序执行（不能放 deps：deps 与 cmds 并行，会导致
+    # go build 在 cp 完成前启动而找不到 embed 的 frontend/dist）。
     deps:
       - task: common:go:mod:tidy
       - task: common:generate:icons
@@ -51,6 +43,7 @@ tasks:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
     cmds:
+      - task: common:build:frontend
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
@@ -69,7 +62,7 @@ tasks:
   build:docker:
     summary: Cross-compiles for Windows using Docker with Zig (for CGO builds on non-Windows)
     internal: true
-    # 前端构建由 build 顶层 cmds 顺序完成，避免 Docker 构建与 cp 并行。
+    # 前端构建放在 cmds 第一个顺序执行（不能放 deps：deps 与 cmds 并行）。
     deps:
       - task: common:generate:icons
     preconditions:
@@ -80,6 +73,7 @@ tasks:
           Docker image '{{.CROSS_IMAGE}}' not found.
           Build it first: wails3 task setup:docker
     cmds:
+      - task: common:build:frontend
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
