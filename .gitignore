@@ -1,9 +1,9 @@
-apps/wails/frontend/.npmrc
+apps/wails/mdx
+apps/wails/frontend/
 apps/web/bindings/
 apps/web/dist/
 apps/web/node_modules/
 node_modules/
 packages/core/node_modules/
-apps/wails/mdx
 .workbuddy/
 apps/web/dist-test/
