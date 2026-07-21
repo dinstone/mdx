@@ -87,6 +87,12 @@ func main() {
 	menu.AddRole(application.EditMenu)
 	menu.AddRole(application.WindowMenu)
 	helpMenu := menu.AddSubmenu("Help")
+	helpMenu.Add("使用说明").OnClick(func(_ *application.Context) {
+		if err := app.Browser.OpenURL("https://github.com/dinstone/mdx"); err != nil {
+			log.Printf("[help] open url failed: %v", err)
+		}
+	})
+	helpMenu.AddSeparator()
 	helpMenu.Add("检查更新…").OnClick(func(_ *application.Context) {
 		go func() {
 			if err := app.Updater.CheckAndInstall(context.Background()); err != nil {
