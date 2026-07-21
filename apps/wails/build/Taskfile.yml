@@ -103,8 +103,14 @@ tasks:
       - task: frontend:run
         vars:
           SCRIPT: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
-      # Clean previous dist then copy for Go embed (avoid accumulating stale hashed files)
-      - rm -rf ../wails/frontend/dist
+      # 先彻底删掉整个 embed 目录，再重建父目录后拷贝。
+      # 注意：若只 `rm -rf ../wails/frontend/dist` 而 ../wails/frontend 父目录
+      # 不存在（例如 wails3 package clean 之后、或全新 clone——该目录未被 git
+      # 跟踪），`cp -r dist ../wails/frontend/` 会把 dist 复制成 `frontend` 本身
+      # 而非 `frontend/dist`，导致 go build 的 `//go:embed all:frontend/dist`
+      # 报 "no matching files found"。`mkdir -p` 保证父目录存在即可根治。
+      - rm -rf ../wails/frontend
+      - mkdir -p ../wails/frontend
       - cp -r dist ../wails/frontend/
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
