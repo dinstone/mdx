@@ -57,13 +57,16 @@ MDX 内置了一套**色彩语义保全算法**，可在编辑器中预览微信
 
 ---
 
-## 🚀 快速开始
-
-### 桌面版下载
+## 🚀 应用下载
 
 前往 [Releases](https://github.com/dinstone/mdx/releases) 下载对应平台安装包：
 
-- **MacOS**：`MDX-<版本号>-arm64-mac.zip`（Apple Silicon）
+- **MacOS**：
+
+  `MDX-darwin-amd64.zip`（Intel x86_64）
+
+  `MDX-darwin-arm64.zip`（Apple Silicon）
+  
 - **Windows**：`MDX.Setup.<版本号>.exe`
 - **Linux**：`MDX-<版本号>.AppImage`
 
