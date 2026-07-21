@@ -10,6 +10,11 @@ vars:
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: "{{.GOOS | default OS}}"
 
+  # 默认生产构建 flags，供 common:build:frontend → generate:bindings 使用。
+  # 各平台 build:native / build:docker 的 BUILD_FLAGS（含 DEV / OBFUSCATED 变体）会覆盖它；
+  # 但 macOS build:universal 的 common:build:frontend 顶层依赖需要此默认值来生成正确绑定。
+  BUILD_FLAGS: '-tags production -trimpath -buildvcs=false -ldflags="-w -s -X ''mdx/internal/service.appVersion={{.VERSION}}''"'
+
   # App version, read once from the monorepo root package.json (apps/wails sits two
   # levels below it). wake merges the root Taskfile's top-level vars into every
   # included task's scope, so all platforms share this single value instead of

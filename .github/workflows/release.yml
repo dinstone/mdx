@@ -116,38 +116,15 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      # 构建前端并拷贝到 Go embed 目录（apps/wails/frontend/dist）。
-      #
-      # 关键点：这里用【显式 shell 命令】完成，而不是依赖 wails3 的
-      # common:build:frontend task。原因（本地已复现）：
-      #   common:build:frontend 标了 run:once，而 darwin:package:universal 会为
-      #   amd64 / arm64 各触发一次 build:frontend。wake 的 run:once 在“同一 task 被
-      #   多个架构的构建共享依赖”场景下，会把该 task 的 cmds（pnpm build + 拷贝）
-      #   整条跳过——单架构 darwin:build:native 正常，但双架构 package:universal 下
-      #   build:frontend 的拷贝步被吞，apps/wails/frontend/dist 从未生成，go build
-      #   报 “pattern all:frontend/dist: no matching files found”。
-      #   显式 shell 不受 wake run:once 影响，保证 embed 目录一定存在；后续
-      #   package:universal 无论是否跳过其 build:frontend 依赖，go build 都能找到文件。
-      #
-      # 前端【源码】在 apps/web：apps/web 用 Vite 构建，再把产物拷贝到
-      # apps/wails/frontend/dist。为什么不能只跑 `pnpm build`：main.go:17 用
-      #   //go:embed all:frontend/dist
-      # 把前端打进二进制，而 embed 路径是【相对于 main.go 所在目录】解析的，即
-      # apps/wails/frontend/dist —— 不是 apps/web/dist。裸跑 pnpm build 只产出
-      # apps/web/dist，不做拷贝就会触发上面的嵌入错误。
-      - name: Build frontend (embed assets)
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$GITHUB_WORKSPACE/apps/wails"
-          # 1) 生成 Go<->TS bindings（go build 依赖；CI 日志已验证可正常生成）
-          wails3 generate bindings \
-            -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s -X '\''mdx/internal/service.appVersion=0.8.2'\''"' \
-            -clean=true -ts -i -d ../web/bindings
-          # 2) 构建前端（源码在 apps/web）并拷贝到 Go embed 目录
-          ( cd ../web && pnpm run build )
-          rm -rf frontend/dist
-          cp -r ../web/dist frontend/
+      # 前端构建统一交给 wails3 task 内部完成，且只构建一次：
+      #   - macOS：darwin:package:universal 经 build:universal 的【顶层依赖】
+      #     common:build:frontend 构建前端（不再嵌套在双架构 build 里），run:once 不会
+      #     跳过它，前端只构建一次。
+      #   - Windows：build:native 依赖 common:build:frontend，单架构单次调用，同样一次。
+      # 此前这里用显式 shell 跑 pnpm build + cp，会与 task 内的 common:build:frontend
+      # 重复构建一次前端（约多花一倍 vite 时间），现已移除该重复。
+      # 前端源码在 apps/web，由 common:build:frontend 执行 pnpm build 并拷贝到
+      # apps/wails/frontend/dist（main.go:17 的 //go:embed all:frontend/dist 需要）。
 
       # ---- macOS：构建 universal .app 并拆成按架构命名的 zip（更新器需要）----
       - name: Build & package (macOS universal)

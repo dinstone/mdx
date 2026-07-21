@@ -28,14 +28,10 @@ tasks:
     internal: true
     deps:
       - task: common:go:mod:tidy
-      - task: common:build:frontend
-        vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
-          OBFUSCATED:
-            ref: .OBFUSCATED
-          DEV:
-            ref: .DEV
+      # 前端构建不再放这里：build:native 会被 build:universal 为 amd64/arm64 各调用一次，
+      # common:build:frontend 的 run:once 会在“双架构共享同一依赖”场景下把拷贝步整条
+      # 跳过，导致 apps/wails/frontend/dist 缺失。前端改由 build:universal 的顶层依赖
+      # 统一构建一次（见 build:universal 的 deps）。
       # 不在构建流程里生成图标：wails3 generate icons 在 macOS 调用 actool，CI 的
       # macos runner（DEVELOPER_DIR 指向 Command Line Tools，无 actool）会报
       # “failed to run actool: exit status 1”。图标 darwin/icons.icns 已提交进仓库，
@@ -63,10 +59,7 @@ tasks:
     summary: Cross-compiles for macOS using Docker (for Linux/Windows hosts)
     internal: true
     deps:
-      - task: common:build:frontend
-        vars:
-          OBFUSCATED:
-            ref: .OBFUSCATED
+      # 前端构建由 build:universal 的顶层依赖统一完成（run:once 安全）。
       # 同 build:native：跳过图标生成，直接复用已提交的 darwin/icons.icns（规避 actool）。
       # - task: common:generate:icons
     preconditions:
@@ -96,6 +89,12 @@ tasks:
     # 串行而非并发构建两个架构：dual CGO `go build` 同时跑会瞬间占满 CI runner 内存，
     # 触发 OOM / SIGKILL——表现为 go build 静默 exit status 1、且 stderr 无任何报错输出。
     # 串行后内存峰值=单架构构建，彻底规避；代价是构建多花约一倍时间。
+    # 前端构建作为本 task 的【顶层依赖】，在双架构 go build 之前只跑一次：
+    # 此前 common:build:frontend 放在 build:native 内，build:universal 为 amd64/arm64
+    # 各调用一次 build:native，run:once 会把该依赖的“拷贝”步跳过，embed 的
+    # frontend/dist 缺失。提到这里（build:universal 顶层）即只构建一次，run:once 安全。
+    deps:
+      - task: common:build:frontend
     cmds:
       - task: build
         vars:
@@ -124,6 +123,9 @@ tasks:
   package:
     summary: Packages the application into a `.app` bundle
     deps:
+      # 单架构打包：前端在此统一构建一次，再编译，避免 build:native 内嵌该依赖时
+      # 在（潜在的）多调用场景下被 run:once 跳过。
+      - task: common:build:frontend
       - task: build
     cmds:
       - task: create:app:bundle
