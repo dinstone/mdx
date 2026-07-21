@@ -89,13 +89,13 @@ tasks:
     # 串行而非并发构建两个架构：dual CGO `go build` 同时跑会瞬间占满 CI runner 内存，
     # 触发 OOM / SIGKILL——表现为 go build 静默 exit status 1、且 stderr 无任何报错输出。
     # 串行后内存峰值=单架构构建，彻底规避；代价是构建多花约一倍时间。
-    # 前端构建作为本 task 的【顶层依赖】，在双架构 go build 之前只跑一次：
-    # 此前 common:build:frontend 放在 build:native 内，build:universal 为 amd64/arm64
-    # 各调用一次 build:native，run:once 会把该依赖的“拷贝”步跳过，embed 的
-    # frontend/dist 缺失。提到这里（build:universal 顶层）即只构建一次，run:once 安全。
-    deps:
-      - task: common:build:frontend
+    #
+    # 前端构建必须放在 cmds 的第一个顺序步骤，不能放 deps：wake/go-task 的 deps
+    # 与 cmds 是并行执行的，若把 common:build:frontend 放在 deps，go build 可能在
+    # cp 拷贝完成前就启动，导致 "pattern all:frontend/dist: no matching files"。
+    # 放在 cmds 第一个顺序执行，可确保 frontend/dist 已就绪再开始双架构编译。
     cmds:
+      - task: common:build:frontend
       - task: build
         vars:
           ARCH: amd64
@@ -122,12 +122,11 @@ tasks:
 
   package:
     summary: Packages the application into a `.app` bundle
-    deps:
-      # 单架构打包：前端在此统一构建一次，再编译，避免 build:native 内嵌该依赖时
-      # 在（潜在的）多调用场景下被 run:once 跳过。
+    # 前端构建必须放在 cmds 顺序执行，不能放 deps（deps 与 cmds 并行，会导致
+    # go build 在 cp 完成前启动而找不到 frontend/dist）。
+    cmds:
       - task: common:build:frontend
       - task: build
-    cmds:
       - task: create:app:bundle
 
   package:universal:

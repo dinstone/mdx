@@ -17,7 +17,17 @@ vars:
 tasks:
   build:
     summary: Builds the application for Windows
+    # 前端构建必须放在 cmds 顺序执行，不能放 deps（deps 与 cmds 并行，会导致
+    # go build 在 cp 完成前启动而找不到 frontend/dist）。
     cmds:
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+          OBFUSCATED:
+            ref: .OBFUSCATED
+          DEV:
+            ref: .DEV
       # Auto-detect CGO: if CGO_ENABLED=1, use Docker; otherwise use native Go cross-compile
       - task: '{{if and (ne OS "windows") (eq .CGO_ENABLED "1")}}build:docker{{else}}build:native{{end}}'
         vars:
@@ -33,16 +43,9 @@ tasks:
   build:native:
     summary: Builds the application using native Go cross-compilation
     internal: true
+    # 前端构建由 build 顶层 cmds 顺序完成，避免与 go build 并行导致找不到 embed。
     deps:
       - task: common:go:mod:tidy
-      - task: common:build:frontend
-        vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
-          OBFUSCATED:
-            ref: .OBFUSCATED
-          DEV:
-            ref: .DEV
       - task: common:generate:icons
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
@@ -66,11 +69,8 @@ tasks:
   build:docker:
     summary: Cross-compiles for Windows using Docker with Zig (for CGO builds on non-Windows)
     internal: true
+    # 前端构建由 build 顶层 cmds 顺序完成，避免 Docker 构建与 cp 并行。
     deps:
-      - task: common:build:frontend
-        vars:
-          OBFUSCATED:
-            ref: .OBFUSCATED
       - task: common:generate:icons
     preconditions:
       - sh: docker info > /dev/null 2>&1

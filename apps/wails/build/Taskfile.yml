@@ -84,7 +84,12 @@ tasks:
       - "**/*"
       - exclude: node_modules/**/*
     generates:
+      # 必须同时声明 Vite 产物和拷贝到 Go embed 目录的产物。
+      # 如果只声明 dist/**/*，当 apps/web/dist 存在而 apps/wails/frontend/dist
+      # 被删/缺失时，wake 会误判为 up-to-date 并跳过 cp，导致 go build 报
+      # "pattern all:frontend/dist: no matching files"。
       - dist/**/*
+      - ../wails/frontend/dist/**/*
     deps:
       - task: sync:version
       - task: install:frontend:deps

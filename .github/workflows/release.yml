@@ -117,13 +117,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # 前端构建统一交给 wails3 task 内部完成，且只构建一次：
-      #   - macOS：darwin:package:universal 经 build:universal 的【顶层依赖】
-      #     common:build:frontend 构建前端（不再嵌套在双架构 build 里），run:once 不会
-      #     跳过它，前端只构建一次。
-      #   - Windows：build:native 依赖 common:build:frontend，单架构单次调用，同样一次。
-      # 此前这里用显式 shell 跑 pnpm build + cp，会与 task 内的 common:build:frontend
-      # 重复构建一次前端（约多花一倍 vite 时间），现已移除该重复。
-      # 前端源码在 apps/web，由 common:build:frontend 执行 pnpm build 并拷贝到
+      #   - macOS：darwin:package:universal → build:universal 把 common:build:frontend
+      #     作为 cmds 的第一个顺序步骤执行，确保 cp 到 apps/wails/frontend/dist 完成
+      #     后再开始 go build。若把它放 deps，deps 与 cmds 并行，go build 可能在
+      #     cp 完成前启动，导致 "pattern all:frontend/dist: no matching files"。
+      #   - Windows：windows:build 同样在 cmds 开头顺序调用 common:build:frontend，
+      #     再执行 build:native / build:docker。
+      # 此前这里用显式 shell 跑 pnpm build + cp，会与 task 内的前端构建重复一次
+      # （约多花一倍 vite 时间），现已移除该重复。
+      # 前端源码在 apps/web，由 common:build:frontend 执行 pnpm run build 并拷贝到
       # apps/wails/frontend/dist（main.go:17 的 //go:embed all:frontend/dist 需要）。
 
       # ---- macOS：构建 universal .app 并拆成按架构命名的 zip（更新器需要）----
