@@ -67,18 +67,15 @@ MDX 内置了一套**色彩语义保全算法**，可在编辑器中预览微信
 
   `MDX-darwin-arm64.zip`（Apple Silicon）
   
-- **Windows**：`MDX.Setup.<版本号>.exe`
-- **Linux**：`MDX-<版本号>.AppImage`
+- **Windows**：`MDX-windows-amd64.zip`
 
 > ⚠️ **macOS 用户注意**：首次打开时如提示"应用已损坏"，请在终端执行：
->
 > ```bash
 > xattr -cr /Applications/MDX.app
 > ```
 >
 > ⚠️ **Windows 用户注意**：如 SmartScreen 提示"未知发布者"，点击「更多信息」→「仍要运行」
 >
-> ⚠️ **Linux 用户注意**：运行前需设置可执行权限：`chmod +x MDX.AppImage`
 
 ---
 

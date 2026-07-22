@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 
 	"mdx/internal/service"
+	"mdx/internal/util"
 )
 
 //go:embed all:frontend/dist
@@ -53,6 +54,7 @@ func main() {
 	// SHA256SUMS 校验和侧车文件（用于 digest 校验）。
 	ghProvider, ghErr := github.New(github.Config{
 		Repository: "dinstone/mdx",
+		HTTPClient: util.UpdaterHTTPClient(),
 	})
 	if ghErr != nil {
 		log.Fatalf("updater: github.New: %v", ghErr)
