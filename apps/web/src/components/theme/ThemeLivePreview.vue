@@ -6,6 +6,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
 import { getImageStorage } from '../../services/imageStorage'
 import { katexCssLocalFonts } from '../../utils/katexStyle'
+import previewMarkdown from '../../assets/preview.md?raw'
 
 const props = defineProps<{
   css: string
@@ -15,61 +16,6 @@ const props = defineProps<{
 
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 
-// 预览用示例 Markdown
-const PREVIEW_MARKDOWN = String.raw`# 一级标题示例
-
-这是一段**加粗文本**、*斜体文本*、++下划线文本++、~~删除线文本~~、==高亮文本==和 [链接示例](https://github)。
-
-正文段落通常需要设置行高和间距，以保证阅读体验。微信排版对样式的要求较高，一个好的主题能让文章脱颖而出。
-
----
-
-## 二级标题
-
-> 这是一个引用块示例，通常用于强调重要内容或摘录。好的排版能极大提升阅读体验。
-
-| 平台 | 特点 | 适用程度 |
-| :--- | :--- | :--- |
-| 微信 | 封闭但流量大 | ★★★★★ |
-| 博客 | 自由但流量小 | ★★★ |
-
-### 三级标题
-
-- 无序列表项
-  - 嵌套的无序列表 A
-  - 嵌套的无序列表 B
-
-1. 有序列表项
-   1. 嵌套的有序列表 A
-   2. 嵌套的有序列表 B
-
-#### 四级标题
-
-这里有 \`行内代码\` 样式，也可以用来表示 \`npm install mdx\` 等指令。
-
-\`\`\`js
-// 代码块示例
-function hello() {
-  const a = 1;
-  const b = 2;
-  console.log("Hello, Markdown!");
-}
-\`\`\`
-
-## 数学公式
-
-行内公式：质能方程 $E = mc^2$
-
-高斯积分：$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$
-
-块级公式：
-
-$$
-\frac{\partial}{\partial t} u(x,t) = \alpha \frac{\partial^2}{\partial x^2} u(x,t)
-$$
-
-![示例图片](https://img.wemd.app/example.jpg)
-`
 
 // Markdown parser (without Mac bar for preview simplicity)
 const parser = createMarkdownParser({ showMacBar: true })
@@ -191,7 +137,7 @@ async function updateIframe() {
   }
   katexStyle.textContent = katexCssLocalFonts
 
-  const mdHtml = parser.render(props.markdown ?? PREVIEW_MARKDOWN)
+  const mdHtml = parser.render(props.markdown ?? previewMarkdown)
   // 把 KaTeX 样式一并交给 juice：否则 juice 只内联主题 CSS，KaTeX 元素会继承主题的
   // font-family 并被内联成 inline 样式（优先级高于 <head> 里的 .katex 类规则），
   // 导致公式字体被覆盖、渲染错乱。并入 KaTeX CSS 后，数学字体也会以 inline 形式
