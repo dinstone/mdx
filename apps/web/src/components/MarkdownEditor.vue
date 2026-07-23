@@ -4,6 +4,7 @@ import { minimalSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
+import { languages } from '@codemirror/language-data'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { customKeymap } from './editorShortcuts'
@@ -206,7 +207,7 @@ onMounted(() => {
       minimalSetup,
       customKeymap,
       saveKeymap,
-      markdown(),
+      markdown({ codeLanguages: languages }),
       syntaxHighlighting(headingHighlight),
       imageDropPaste(),
       EditorView.lineWrapping,

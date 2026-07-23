@@ -345,6 +345,73 @@ export const customDefaultTheme = `/* 自定义样式,实时生效,浏览器实�
   border: 1px solid #e2e8f0;
 }
 
+/* 代码块语法高亮（highlight.js token 颜色，GitHub-light 风格） */
+#wemd pre code.hljs .hljs-comment,
+#wemd pre code.hljs .hljs-quote {
+  color: #6b7280;
+  font-style: italic;
+}
+#wemd pre code.hljs .hljs-keyword,
+#wemd pre code.hljs .hljs-selector-tag,
+#wemd pre code.hljs .hljs-subst {
+  color: #d73a49;
+  font-weight: bold;
+}
+#wemd pre code.hljs .hljs-number,
+#wemd pre code.hljs .hljs-literal,
+#wemd pre code.hljs .hljs-variable,
+#wemd pre code.hljs .hljs-template-variable {
+  color: #005cc5;
+}
+#wemd pre code.hljs .hljs-string,
+#wemd pre code.hljs .hljs-doctag {
+  color: #032f62;
+}
+#wemd pre code.hljs .hljs-title,
+#wemd pre code.hljs .hljs-section,
+#wemd pre code.hljs .hljs-selector-id {
+  color: #6f42c1;
+  font-weight: bold;
+}
+#wemd pre code.hljs .hljs-type,
+#wemd pre code.hljs .hljs-class .hljs-title {
+  color: #458;
+  font-weight: bold;
+}
+#wemd pre code.hljs .hljs-tag,
+#wemd pre code.hljs .hljs-name,
+#wemd pre code.hljs .hljs-attribute {
+  color: #22863a;
+}
+#wemd pre code.hljs .hljs-regexp,
+#wemd pre code.hljs .hljs-link {
+  color: #009926;
+}
+#wemd pre code.hljs .hljs-symbol,
+#wemd pre code.hljs .hljs-bullet {
+  color: #e36209;
+}
+#wemd pre code.hljs .hljs-built_in,
+#wemd pre code.hljs .hljs-builtin-name {
+  color: #0086b3;
+}
+#wemd pre code.hljs .hljs-meta {
+  color: #6a737d;
+  font-weight: bold;
+}
+#wemd pre code.hljs .hljs-deletion {
+  background: #ffeef0;
+}
+#wemd pre code.hljs .hljs-addition {
+  background: #f0fff4;
+}
+#wemd pre code.hljs .hljs-emphasis {
+  font-style: italic;
+}
+#wemd pre code.hljs .hljs-strong {
+  font-weight: bold;
+}
+
 /*
  * 表格内的单元格
  * 字体大小 font-size: 16px;
