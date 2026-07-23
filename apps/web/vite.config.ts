@@ -54,12 +54,10 @@ export default defineConfig(async () => {
       },
     },
     plugins,
-    // WKWebView on macOS Monterey (Safari 15.x) doesn't support top-level await
-    // and some newer ES features. Force Vite to treat these deps as external
-    // during dev so they're bundled by esbuild with the right target.
-    optimizeDeps: {
-      exclude: ["mermaid"],
-    },
+    // Let Vite pre-bundle all deps (including heavy ESM packages like mermaid)
+    // so dynamic imports work reliably in dev and the desktop build.
+    // Safari 15 (WKWebView) compatibility is handled by esbuild.target below.
+    optimizeDeps: {},
     esbuild: {
       target: "safari15",
     },
