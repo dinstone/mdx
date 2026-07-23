@@ -236,16 +236,16 @@ onMounted(() => {
           background: 'transparent',
         },
         '.cm-activeLine': {
-          background: '#e6f5eb',
+          background: 'var(--ui-active-line-bg)',
         },
         '.cm-cursor': {
           borderLeftColor: 'var(--text-primary)',
         },
         '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-          backgroundColor: '#b3e5cc !important',
+          backgroundColor: 'var(--ui-selection-bg) !important',
         },
         '.cm-selectionMatch': {
-          backgroundColor: '#d4f0e0',
+          backgroundColor: 'var(--ui-selection-match-bg)',
         },
       }),
     ],

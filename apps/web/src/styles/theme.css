@@ -20,6 +20,11 @@
   --ui-accent-hover: color-mix(in srgb, var(--ui-accent-primary) 85%, #ffffff);
   --ui-accent-gradient: linear-gradient(135deg, #07c160 0%, #05a850 100%);
 
+  /* Editor selection / active line — 浅色主题用薄荷绿 */
+  --ui-selection-bg: #b3e5cc;
+  --ui-selection-match-bg: #d4f0e0;
+  --ui-active-line-bg: #e6f5eb;
+
   /* Borders & Radius */
   --ui-border-width: 1px;
   --ui-radius-sm: 8px;
@@ -111,6 +116,11 @@
 
   --ui-accent-primary: #07c160;
   --ui-accent-gradient: linear-gradient(135deg, #07c160 0%, #05a850 100%);
+
+  /* Editor selection / active line — 深色主题用半透明绿，文字保持原色不被压 */
+  --ui-selection-bg: rgba(7, 193, 96, 0.4);
+  --ui-selection-match-bg: rgba(7, 193, 96, 0.2);
+  --ui-active-line-bg: rgba(255, 255, 255, 0.04);
 
   --ui-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --ui-shadow-md:

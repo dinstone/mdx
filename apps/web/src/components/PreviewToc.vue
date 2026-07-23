@@ -188,7 +188,7 @@ function itemStyle(level: number) {
   padding: 6px 12px 6px 8px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   cursor: pointer;
   border-radius: 0 4px 4px 0;
   margin-right: 8px;
@@ -215,7 +215,7 @@ function itemStyle(level: number) {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   padding: 24px 16px;
   text-align: center;
 }
