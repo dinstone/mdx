@@ -18,6 +18,7 @@ export function generateComponents(
 
   return `/* === 组件样式 === */
 
+/* @mdx-group:quote */
 #wemd blockquote,
 #wemd .multiquote-1,
 #wemd .multiquote-2,
@@ -37,6 +38,7 @@ export function generateComponents(
   ${v.quoteTextCentered ? "text-align: center !important;" : ""}
 }
 
+/* @mdx-group:code */
 #wemd pre {
   margin: var(--mdx-paragraph-margin) 0;
   overflow-x: auto;
@@ -96,6 +98,7 @@ ${getCodeThemeCSS(v.codeTheme)}
   word-spacing: 0;
 }
 
+/* @mdx-group:other */
 #wemd a {
   color: var(--mdx-link-color);
   text-decoration: none;
@@ -128,6 +131,7 @@ ${getCodeThemeCSS(v.codeTheme)}
   border-radius: 2px;
 }
 
+/* @mdx-group:hr */
 #wemd hr {
   margin: var(--mdx-hr-margin) 0;
   border: 0;
@@ -140,6 +144,7 @@ ${getCodeThemeCSS(v.codeTheme)}
   })()}
 }
 
+/* @mdx-group:table */
 #wemd table {
   width: 100%;
   border-collapse: collapse;
@@ -160,6 +165,7 @@ ${getCodeThemeCSS(v.codeTheme)}
 
 ${v.tableZebra ? `#wemd tr:nth-child(even) { background: #fcfcfc; }` : ""}
 
+/* @mdx-group:image */
 #wemd img {
   display: block;
   max-width: 100%;
