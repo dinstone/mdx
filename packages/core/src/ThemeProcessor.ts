@@ -1,6 +1,81 @@
 import juice from "juice";
 
 /**
+ * 展开 CSS 自定义属性（CSS 变量），将 var(--name[, fallback]) 替换为具体值。
+ *
+ * 为什么要做这一步：juice.inlineContent 不会解析 CSS 变量，内联后元素携带的是
+ * `var(--x)` 而非具体值；而微信公众号编辑器会剥离/不支持 CSS 自定义属性（--xxx），
+ * 导致复制后所有 var() 失效、样式整体回退为默认值（即"预览正常、复制不对"）。
+ * 可视化主题设计器生成的 CSS 大量使用 --mdx-* 变量，因此在交给 juice 内联前，
+ * 先把变量解析为字面量，保证复制出的内联样式是具体值，公众号 100% 支持。
+ */
+function resolveCssVariables(css: string): string {
+  if (!css || !css.includes("var(")) return css;
+
+  // 1) 收集所有 --name: value 声明（任意规则块内，不区分选择器）
+  const defs = new Map<string, string>();
+  const blockRe = /\{([^{}]*)\}/g;
+  let block: RegExpExecArray | null;
+  while ((block = blockRe.exec(css)) !== null) {
+    const decls = block[1];
+    const declRe = /(--[\w-]+)\s*:\s*([^;]+);/g;
+    let d: RegExpExecArray | null;
+    while ((d = declRe.exec(decls)) !== null) {
+      defs.set(d[1], d[2].trim());
+    }
+  }
+
+  // 2) 解析单个 var() 调用：括号配平取出形参，按变量表/fallback 替换
+  const substitute = (input: string): string => {
+    let out = "";
+    let i = 0;
+    const n = input.length;
+    while (i < n) {
+      const at = input.indexOf("var(", i);
+      if (at === -1) {
+        out += input.slice(i);
+        break;
+      }
+      out += input.slice(i, at);
+      // 配平括号，取出 var( ... ) 内部内容
+      let depth = 0;
+      let j = at + 4; // 跳过 "var("
+      for (; j < n; j++) {
+        const ch = input[j];
+        if (ch === "(") depth++;
+        else if (ch === ")") {
+          if (depth === 0) break;
+          depth--;
+        }
+      }
+      const inner = input.slice(at + 4, j);
+      const commaIdx = inner.indexOf(",");
+      const name = (commaIdx === -1 ? inner : inner.slice(0, commaIdx)).trim();
+      const fallback = commaIdx === -1 ? undefined : inner.slice(commaIdx + 1).trim();
+      let resolved: string;
+      if (defs.has(name)) resolved = defs.get(name)!;
+      else if (fallback !== undefined) resolved = fallback;
+      else resolved = `var(${inner})`; // 无法解析，原样保留（后续迭代可能解析）
+      out += resolved;
+      i = j + 1; // 跳过 ")"
+    }
+    return out;
+  };
+
+  // 3) 先解析变量定义值内部的 var()，再整体替换使用处，循环至稳定（处理嵌套 var）
+  for (const [k, v] of defs) {
+    defs.set(k, substitute(v));
+  }
+  let result = css;
+  for (let guard = 0; guard < 20; guard++) {
+    const next = substitute(result);
+    if (next === result) break;
+    result = next;
+  }
+  return result;
+}
+
+/**
  * 从标题 HTML 内容生成稳定 slug。保留中文字符、数字、字母，其余转连字符。
  */
 function slugify(text: string): string {
@@ -80,6 +155,12 @@ export const processHtml = (
 ): string => {
   if (!html || !css) {
     return html || "";
+  }
+
+  // 内联路径（复制到公众号 / 导出 / 主题内联预览）前，先把 CSS 变量展开为具体值，
+  // 否则 juice 不会解析 var()，而公众号又不支持 CSS 自定义属性，导致复制后样式失效。
+  if (inlineStyles) {
+    css = resolveCssVariables(css);
   }
 
   // 为顶级块元素添加 data-tool 属性

@@ -7,7 +7,11 @@
 // 任一次截图失败都会降级保留原公式，不阻塞导出。
 
 import { toPng } from 'html-to-image'
-import { katexCssWithCdnFonts } from './katexStyle'
+// 使用 base64 内联字体（katexCssLocalFonts）而不是 CDN 字体（katexCssWithCdnFonts）：
+// html-to-image 把 .katex 序列化到 SVG <foreignObject> 时会重新 fetch 字体，
+// CDN 字体在跨域下可能被拒绝/引发 canvas tainted → 截图失败/降级保留原公式。
+// 改用同源 data URI 字体后，离屏渲染稳定，截图能走通。
+import { katexCssLocalFonts } from './katexStyle'
 
 export async function rasterizeMathToImages(html: string): Promise<string> {
   if (
@@ -19,14 +23,16 @@ export async function rasterizeMathToImages(html: string): Promise<string> {
 
   const container = document.createElement('div')
   container.setAttribute('data-math-raster', '')
-  // 离屏但真实渲染：白底黑字，保证截出的字形是深色的（适配公众号白底）
+  // 离屏但保留 paint：放在 viewport 左上、用 opacity:0 隐藏。
+  // 之前 left:-100000px 在某些 Chromium 引擎下 skip 了离屏布局的 paint，
+  // 导致 html-to-image 截到空白或异常。改为视觉不可见但仍在视口内，渲染稳定。
   container.style.cssText =
-    'position:fixed;left:-100000px;top:0;width:760px;background:#ffffff;color:#000000;' +
-    'font-size:16px;line-height:1.6;padding:0;margin:0;'
+    'position:fixed;left:0;top:0;width:760px;background:#ffffff;color:#000000;' +
+    'font-size:16px;line-height:1.6;padding:0;margin:0;opacity:0;pointer-events:none;z-index:-1;'
 
   const styleEl = document.createElement('style')
   styleEl.setAttribute('data-katex-cdn', '')
-  styleEl.textContent = katexCssWithCdnFonts
+  styleEl.textContent = katexCssLocalFonts
   container.appendChild(styleEl)
 
   const content = document.createElement('div')
@@ -49,16 +55,26 @@ export async function rasterizeMathToImages(html: string): Promise<string> {
     )
     await new Promise<void>((resolve) => setTimeout(resolve, 120))
 
+    // 行内公式：.inline-equation > .katex（直接子节点）
+    // 行间公式：KaTeX displayMode=true 时输出两层包裹
+    //   <section class="block-equation">
+    //     <span class="katex-display"><span class="katex">…</span></span>
+    //   </section>
+    // 因此行间用后代选择器，不能用直接子选择器。
     const katexNodes = Array.from(
       container.querySelectorAll<HTMLElement>(
-        '.inline-equation > .katex, .block-equation > .katex',
+        '.inline-equation > .katex, .block-equation .katex',
       ),
     )
 
     for (const katexEl of katexNodes) {
+      // isBlock 用 closest 判断，避免 katex-display 插进来后父节点判定错位
+      const isBlock = !!katexEl.closest('.block-equation')
+      const dataHolder = isBlock
+        ? katexEl.closest('.block-equation')
+        : katexEl.closest('.inline-equation')
       const parent = katexEl.parentElement
-      if (!parent) continue
-      const isBlock = parent.classList.contains('block-equation')
+      if (!parent || !dataHolder) continue
       try {
         const rect = katexEl.getBoundingClientRect()
         const width = Math.ceil(rect.width) + 4
@@ -77,7 +93,11 @@ export async function rasterizeMathToImages(html: string): Promise<string> {
         })
         const img = document.createElement('img')
         img.src = dataUrl
-        const latex = (parent.getAttribute('data-latex') || '').replace(/[<>]/g, '')
+        // data-latex 在外层 .inline-equation / .block-equation 上（用 closest 取）
+        const latex = (dataHolder.getAttribute('data-latex') || '').replace(
+          /[<>]/g,
+          '',
+        )
         if (latex) img.alt = latex
         // 关键：显式把显示宽度限制为公式原始像素宽（width 已含 2x 之上的 +4 留白），
         // 否则浏览器按 PNG 固有像素(=原始宽×pixelRatio)显示，图片会被放大 pixelRatio 倍。
