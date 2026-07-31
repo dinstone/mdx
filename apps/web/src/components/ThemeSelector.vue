@@ -250,6 +250,17 @@ function openCreate() {
   })
 }
 
+// 切换创建模式时联动名称输入：
+// - 选「使用默认主题」：清空，让用户自行命名
+// - 选「复制当前主题」：自动带入建议新名称（当前主题名 + 副本），方便直接改或确认
+watch(createMode, (mode) => {
+  if (mode === 'duplicate') {
+    newThemeName.value = `${themeStore.currentTheme.name} (副本)`
+  } else {
+    newThemeName.value = ''
+  }
+})
+
 function confirmCreate() {
   const name = newThemeName.value.trim()
   if (!name) return
@@ -565,7 +576,7 @@ async function handleImportFile(e: Event) {
       <div class="ts-create-dialog">
         <h4>新建自定义主题</h4>
         <div class="ts-create-mode">
-          <button class="ts-mode-btn" :class="{ active: createMode === 'visual' }" @click="createMode = 'visual'">可视化设计</button>
+          <button class="ts-mode-btn" :class="{ active: createMode === 'visual' }" @click="createMode = 'visual'">使用默认主题</button>
           <button class="ts-mode-btn" :class="{ active: createMode === 'duplicate' }" @click="createMode = 'duplicate'">复制当前主题（{{ themeStore.currentTheme.name }}）</button>
         </div>
         <input
