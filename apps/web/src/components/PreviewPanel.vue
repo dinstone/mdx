@@ -18,6 +18,9 @@ const isProgrammaticScroll = ref(false)
 const showToc = ref(false)
 
 let mermaidReady = false
+let mermaidFailed = false
+
+const mermaidError = ref<string | null>(null)
 
 // blob URL 追踪，组件卸载时 revoke
 const _blobUrls: string[] = []
@@ -29,11 +32,21 @@ function revokeBlobUrls() {
   _blobUrls.length = 0
 }
 
-async function ensureMermaid() {
-  if (mermaidReady) return
-  const mermaid = await import('mermaid')
-  mermaid.default.initialize({ startOnLoad: false, securityLevel: 'loose' })
-  mermaidReady = true
+async function ensureMermaid(): Promise<boolean> {
+  if (mermaidReady) return true
+  if (mermaidFailed) return false
+  try {
+    const mermaid = await import('mermaid')
+    mermaid.default.initialize({ startOnLoad: false, securityLevel: 'loose' })
+    mermaidReady = true
+    mermaidError.value = null
+    return true
+  } catch (e: any) {
+    mermaidFailed = true
+    mermaidError.value = e?.message || String(e)
+    console.error('Mermaid init failed', e)
+    return false
+  }
 }
 
 /** 解析 HTML 中的 img:// 链接，替换为 blob URL */
@@ -76,14 +89,15 @@ watch(
     // resolveImageUrls 是异步的，期间组件可能已销毁
     if (!container.value) return
 
-    // Mermaid rendering
-    const nodes = container.value.querySelectorAll('.mermaid')
+    // Mermaid rendering（限定在当前容器内）
+    const nodes = container.value.querySelectorAll<HTMLElement>('.mermaid:not([data-processed])')
     if (nodes.length === 0) return
     try {
-      await ensureMermaid()
+      if (!(await ensureMermaid())) return
       const mermaid = await import('mermaid')
-      await mermaid.default.run({ querySelector: '.mermaid' })
-    } catch (e) {
+      await mermaid.default.run({ nodes: Array.from(nodes) })
+    } catch (e: any) {
+      mermaidError.value = e?.message || String(e)
       console.error('Mermaid render failed', e)
     }
   },
@@ -192,6 +206,9 @@ onBeforeUnmount(() => {
         :visible="showToc"
         @navigate="navigateToHeading"
       />
+      <div v-if="mermaidError" class="mermaid-error">
+        Mermaid 渲染失败: {{ mermaidError }}
+      </div>
     </div>
   </div>
 </template>
@@ -321,6 +338,31 @@ onBeforeUnmount(() => {
 
 [data-ui-theme="dark"] .preview-content {
   box-shadow: none;
+}
+
+.mermaid-error {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 4px);
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 12px;
+  border: 1px solid #fecaca;
+  z-index: 10;
+  pointer-events: none;
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-ui-theme="dark"] .mermaid-error {
+  background: #450a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
 }
 
 @media (max-width: 768px) {

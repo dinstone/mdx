@@ -10,6 +10,7 @@ import { useToast } from '../composables/useToast'
 import type { DesignerVariables, HeadingLevel } from '../theme-designer/types'
 import { defaultVariables } from '../theme-designer/defaults'
 import { generateCSS } from '../theme-designer/generateCSS'
+import { parseThemeCssToVariables } from '../theme-designer/parseCSS'
 import ThemeDesigner from './theme/ThemeDesigner.vue'
 import ThemeLivePreview from './theme/ThemeLivePreview.vue'
 
@@ -76,7 +77,24 @@ const isBuiltIn = computed(() => selectedTheme.value?.isBuiltIn ?? false)
 
 /** 预览用 CSS：可视化主题用变量实时生成，内置/CSS 主题直接用主题自身 CSS */
 const editingCSS = ref('')
+/**
+ * 当前编辑会话的"分层底"：
+ * - 加载内置主题 → 解析出真实变量并记住其原 CSS 作为底（复制时带入）
+ * - 加载已分层的可视化主题 → 取其 baseCss/baseVars
+ * - 纯 CSS 自定义主题 / 纯可视化主题 → 无底
+ */
+const editingBaseCss = ref<string | undefined>(undefined)
+const editingBaseVars = ref<DesignerVariables | undefined>(undefined)
+
 const liveCSS = computed(() => {
+  if (editingBaseCss.value) {
+    // 分层：底 + 仅改动组的覆盖层（未改动组由底兜底，保留内置精细样式）
+    const overlay = generateCSS(
+      variables.value,
+      editingBaseVars.value ? { skipBase: editingBaseVars.value } : undefined,
+    )
+    return (editingBaseCss.value ? editingBaseCss.value + '\n' : '') + overlay
+  }
   if (isVisualTheme.value) {
     return generateCSS(variables.value)
   }
@@ -97,10 +115,23 @@ function loadThemeIntoEditor(id: string) {
   if (!t) return
   editingName.value = t.name
   editingCSS.value = t.css
+  editingBaseCss.value = undefined
+  editingBaseVars.value = undefined
 
   if (t.editorMode === 'visual' && t.designerVariables) {
+    // 已分层的可视化主题：直接加载设计变量，并记住其底
     variables.value = JSON.parse(JSON.stringify(t.designerVariables))
+    editingBaseCss.value = t.baseCss
+    editingBaseVars.value = t.baseVars
+  } else if (t.isBuiltIn) {
+    // 内置主题：反向解析出真实变量，让设计器从内置实际样式起改，
+    // 并以原 CSS 作为分层底，复制时完整保留内置精细样式。
+    const parsed = parseThemeCssToVariables(t.css)
+    variables.value = parsed
+    editingBaseCss.value = t.css
+    editingBaseVars.value = parsed
   } else {
+    // 纯 CSS 自定义主题：无设计变量，走 CSS 文本框编辑
     variables.value = JSON.parse(JSON.stringify(defaultVariables))
   }
 }
@@ -152,8 +183,8 @@ function handleSaveChanges() {
   if (isVisualTheme.value) {
     themeStore.updateTheme(selectedId.value, {
       name,
-      css: generateCSS(variables.value),
       designerVariables: JSON.parse(JSON.stringify(variables.value)),
+      // css 由 store 用 baseVars 增量重生成覆盖层，保留 baseCss 兜底
     })
   } else {
     themeStore.updateTheme(selectedId.value, {
@@ -189,9 +220,13 @@ function handleApply() {
 function duplicateAndEdit() {
   if (!selectedTheme.value) return
   const sourceName = selectedTheme.value.name
+  // 复制时带入分层底：内置主题原 CSS，或已分层主题的 baseCss
+  const baseCss = editingBaseCss.value ?? selectedTheme.value.baseCss
+  const baseVars = editingBaseVars.value ?? selectedTheme.value.baseVars
   const newTheme = themeStore.createVisualTheme(
     `${sourceName} (副本)`,
     JSON.parse(JSON.stringify(variables.value)),
+    { baseCss, baseVars },
   )
   selectedId.value = newTheme.id
   editingName.value = `${sourceName} (副本)`
@@ -215,6 +250,17 @@ function openCreate() {
   })
 }
 
+// 切换创建模式时联动名称输入：
+// - 选「使用默认主题」：清空，让用户自行命名
+// - 选「复制当前主题」：自动带入建议新名称（当前主题名 + 副本），方便直接改或确认
+watch(createMode, (mode) => {
+  if (mode === 'duplicate') {
+    newThemeName.value = `${themeStore.currentTheme.name} (副本)`
+  } else {
+    newThemeName.value = ''
+  }
+})
+
 function confirmCreate() {
   const name = newThemeName.value.trim()
   if (!name) return
@@ -226,12 +272,18 @@ function confirmCreate() {
   } else if (createMode.value === 'duplicate') {
     const src = themeStore.currentTheme
     let t
-    if (src.designerVariables) {
-      // 当前是可视化主题：连同设计变量一起复制，副本仍为可视化，可继续用设计器编辑
-      t = themeStore.createVisualTheme(name, JSON.parse(JSON.stringify(src.designerVariables)))
+    if (src.editorMode === 'visual' && src.designerVariables) {
+      // 当前是分层可视化主题：连同底一起复制
+      t = themeStore.createVisualTheme(
+        name,
+        JSON.parse(JSON.stringify(src.designerVariables)),
+        { baseCss: src.baseCss, baseVars: src.baseVars },
+      )
     } else {
-      // 当前是纯 CSS / 内置主题：无设计变量，只能按 CSS 模式复制
-      t = themeStore.createTheme(name, themeStore.getThemeCSS(themeStore.currentThemeId))
+      // 当前是纯 CSS / 内置主题：解析原 CSS 为变量，以原 CSS 作底，
+      // 复制为分层可视化主题，完整保留内置精细样式，可继续微调
+      const parsed = parseThemeCssToVariables(src.css)
+      t = themeStore.createVisualTheme(name, parsed, { baseCss: src.css, baseVars: parsed })
     }
     selectedId.value = t.id
     toast.success('主题创建成功')
@@ -524,7 +576,7 @@ async function handleImportFile(e: Event) {
       <div class="ts-create-dialog">
         <h4>新建自定义主题</h4>
         <div class="ts-create-mode">
-          <button class="ts-mode-btn" :class="{ active: createMode === 'visual' }" @click="createMode = 'visual'">可视化设计</button>
+          <button class="ts-mode-btn" :class="{ active: createMode === 'visual' }" @click="createMode = 'visual'">使用默认主题</button>
           <button class="ts-mode-btn" :class="{ active: createMode === 'duplicate' }" @click="createMode = 'duplicate'">复制当前主题（{{ themeStore.currentTheme.name }}）</button>
         </div>
         <input

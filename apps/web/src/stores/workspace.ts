@@ -23,8 +23,12 @@ import {
   workspaceForPath,
 } from './workspace-types'
 
+import welcomeDoc from '../assets/welcome.md?raw'
+
 const RECENT_WORKSPACES_KEY = 'mdx-recent-workspaces'
 const MAX_RECENT_WORKSPACES = 10
+
+/** Temp 虚拟工作区首次创建时写入的欢迎文档内容（源文件见 src/assets/welcome.md，经 Vite ?raw 导入）。 */
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   // ---- state ----
@@ -132,8 +136,24 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (recentWorkspaces.value.length > 0) {
       await openWorkspace(recentWorkspaces.value[0])
     } else {
-      await openWorkspace(new VirtualWorkspace('/Temp', 'Temp'))
+      const temp = new VirtualWorkspace('/Temp', 'Temp')
+      await openWorkspace(temp)
+      await seedTempWorkspace(temp)
     }
+  }
+
+  /**
+   * 首次创建 Temp 虚拟工作区时，若其中还没有任何 md 文件，
+   * 自动写入一份欢迎文档并设为当前活动文件，方便用户上手。
+   * 若工作区已包含文件（如用户之前用过 Temp 后清空、或来自真实目录），
+   * 则不重复播种。
+   */
+  async function seedTempWorkspace(ws: IWorkspace) {
+    if (ws.kind !== 'virtual') return
+    if (mdFiles.value.length > 0) return
+    const path = await createFile(ws.rootPath, 'welcome.md')
+    await ws.bridge.writeFile(path, welcomeDoc)
+    await setActiveFile(path)
   }
 
   /**

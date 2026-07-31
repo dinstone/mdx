@@ -22,3 +22,38 @@ describe("ThemeProcessor mac bar", () => {
     expect(output).toContain("\n&nbsp;&nbsp;&nbsp;&nbsp;console.log(a);");
   });
 });
+
+describe("ThemeProcessor CSS 变量展开", () => {
+  it("内联（复制/导出）路径把 var() 解析为具体值，避免公众号丢失样式", () => {
+    const html = '<p class="lead">hi</p>';
+    const css = `
+      #wemd {
+        --mdx-text-color: #1a1a1a;
+        --mdx-primary-color: #2f80ed;
+        color: var(--mdx-text-color);
+      }
+      #wemd .lead { color: var(--mdx-primary-color); }
+    `;
+    const output = processHtml(html, css, true, false);
+    expect(output).not.toContain("var(");
+    expect(output).toContain("#1a1a1a");
+    expect(output).toContain("#2f80ed");
+  });
+
+  it("支持嵌套变量与 fallback", () => {
+    const html = "<p>hi</p>";
+    const css = `
+      #wemd {
+        --a: var(--b);
+        --b: #123456;
+        --missing: var(--nope, #abcdef);
+        color: var(--a);
+        background: var(--missing);
+      }
+    `;
+    const output = processHtml(html, css, true, false);
+    expect(output).not.toContain("var(");
+    expect(output).toContain("#123456");
+    expect(output).toContain("#abcdef");
+  });
+});

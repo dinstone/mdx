@@ -19,6 +19,7 @@ export function generateTypography(
 
   return `/* === 排版 === */
 
+/* @mdx-group:global */
 #wemd p {
   font-family: ${safeFontFamily};
   font-size: var(--mdx-font-size);
@@ -37,6 +38,7 @@ export function generateTypography(
   letter-spacing: var(--mdx-letter-spacing);
 }
 
+/* @mdx-group:h1 */
 #wemd h1 .content {
   font-size: var(--mdx-h1-font-size);
   color: var(--mdx-h1-color);
@@ -46,6 +48,7 @@ export function generateTypography(
 }
 #wemd h1 { margin: var(--mdx-h1-margin-top) 0 var(--mdx-h1-margin-bottom); ${v.h1.centered ? "text-align: center;" : ""} }
 
+/* @mdx-group:h2 */
 #wemd h2 .content {
   font-size: var(--mdx-h2-font-size);
   color: var(--mdx-h2-color);
@@ -55,6 +58,7 @@ export function generateTypography(
 }
 #wemd h2 { margin: var(--mdx-h2-margin-top) 0 var(--mdx-h2-margin-bottom); ${v.h2.centered ? "text-align: center;" : ""} }
 
+/* @mdx-group:h3 */
 #wemd h3 .content {
   font-size: var(--mdx-h3-font-size);
   color: var(--mdx-h3-color);
@@ -64,6 +68,7 @@ export function generateTypography(
 }
 #wemd h3 { margin: var(--mdx-h3-margin-top) 0 var(--mdx-h3-margin-bottom); ${v.h3.centered ? "text-align: center;" : ""} }
 
+/* @mdx-group:h4 */
 #wemd h4 .content {
   font-size: var(--mdx-h4-font-size);
   color: var(--mdx-h4-color);
@@ -73,6 +78,7 @@ export function generateTypography(
 }
 #wemd h4 { margin: var(--mdx-h4-margin-top) 0 var(--mdx-h4-margin-bottom); ${v.h4.centered ? "text-align: center;" : ""} }
 
+/* @mdx-group:list */
 #wemd ul { list-style-type: ${v.ulStyle}; padding-left: 20px; margin: var(--mdx-paragraph-margin) 0; font-size: ${!v.ulFontSize || v.ulFontSize === "inherit" ? "var(--mdx-font-size)" : v.ulFontSize}; }
 #wemd ul ul { list-style-type: ${v.ulStyleL2}; margin: 4px 0; }
 #wemd ol { list-style-type: ${v.olStyle}; padding-left: 20px; margin: var(--mdx-paragraph-margin) 0; font-size: ${!v.olFontSize || v.olFontSize === "inherit" ? "var(--mdx-font-size)" : v.olFontSize}; }

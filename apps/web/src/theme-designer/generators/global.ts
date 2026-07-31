@@ -6,6 +6,7 @@ import type { DesignerVariables } from "../types";
 export function generateGlobal(v: DesignerVariables): string {
   return `/* === 全局规则 === */
 
+/* @mdx-group:image */
 #wemd figcaption {
   color: var(--mdx-image-caption-color);
   font-size: var(--mdx-image-caption-font-size);
@@ -14,6 +15,7 @@ export function generateGlobal(v: DesignerVariables): string {
   line-height: var(--mdx-line-height);
 }
 
+/* @mdx-group:global */
 #wemd strong {
   font-weight: bold;
   ${

@@ -24,6 +24,23 @@ export interface CustomTheme extends ThemeEntry {
   editorMode?: 'visual' | 'css'
   /** 可视化设计器变量，仅 visual 模式存在 */
   designerVariables?: DesignerVariables
+  /** 分层底：复制内置/CSS 主题进入可视化设计器时，保留的原始全量 CSS。
+   *  未改动的属性组由底 CSS 兜底，只有用户实际改动的组才以设计器规则覆盖。 */
+  baseCss?: string
+  /** 复制时的初始解析变量（parseThemeCssToVariables 的结果）。
+   *  用于"增量覆盖"判定哪些组未改动、可跳过，从而由 baseCss 兜底。 */
+  baseVars?: DesignerVariables
+}
+
+/**
+ * 合成最终 CSS：分层可视化主题 = baseCss（原始全量）+ overlay（仅改动组）。
+ * 其余主题直接返回存储的 css（内置/纯 CSS/无底的纯可视化主题即全量生成 CSS）。
+ */
+function composeThemeCss(theme: CustomTheme): string {
+  if (theme.baseCss) {
+    return (theme.baseCss || '') + '\n' + (theme.css ?? '')
+  }
+  return theme.css ?? ''
 }
 
 // ---------------------------------------------------------------------------
@@ -90,8 +107,8 @@ export const useThemeStore = defineStore('themes', () => {
     return found ?? builtInThemes[0]
   })
 
-  /** 当前主题的 CSS 字符串 */
-  const currentCSS = computed(() => currentTheme.value.css)
+  /** 当前主题的 CSS 字符串（分层主题已合成 baseCss + overlay） */
+  const currentCSS = computed(() => composeThemeCss(currentTheme.value))
 
   // ---- actions ----
 
@@ -107,17 +124,23 @@ export const useThemeStore = defineStore('themes', () => {
     saveSelectedTheme(currentThemeId.value)
   }
 
-  /** 按 ID 获取主题 CSS（可用于深色模式转换等场景） */
+  /** 按 ID 获取主题 CSS（可用于深色模式转换等场景）。分层主题返回合成后的全量 CSS */
   function getThemeCSS(id: string): string {
     const found = allThemes.value.find((t) => t.id === id)
-    return found?.css ?? builtInThemes[0].css
+    return found ? composeThemeCss(found) : builtInThemes[0].css
   }
 
   /** 创建自定义主题。id 自动生成，即时持久化。 */
   function createTheme(
     name: string,
     css: string,
-    options?: { basedOnId?: string; editorMode?: 'visual' | 'css'; designerVariables?: DesignerVariables },
+    options?: {
+      basedOnId?: string
+      editorMode?: 'visual' | 'css'
+      designerVariables?: DesignerVariables
+      baseCss?: string
+      baseVars?: DesignerVariables
+    },
   ): CustomTheme {
     const trimmedName = name.trim() || '未命名主题'
     const themeCss = css || getThemeCSS(options?.basedOnId || currentThemeId.value)
@@ -131,6 +154,8 @@ export const useThemeStore = defineStore('themes', () => {
       updatedAt: new Date().toISOString(),
       editorMode: options?.editorMode || 'css',
       designerVariables: options?.designerVariables,
+      baseCss: options?.baseCss,
+      baseVars: options?.baseVars,
     }
 
     customThemes.value = [...customThemes.value, theme]
@@ -139,14 +164,29 @@ export const useThemeStore = defineStore('themes', () => {
     return theme
   }
 
-  /** 创建可视化主题：提供名称和变量，自动生成 CSS */
-  function createVisualTheme(name: string, variables?: DesignerVariables): CustomTheme {
+  /**
+   * 创建可视化主题：提供名称和变量，自动生成 CSS。
+   * options.baseCss / baseVars：分层底。传入时只生成与 baseVars 不同的组，
+   * 其余由 baseCss 兜底，实现"保留内置样式 + 可视化微调"。
+   */
+  function createVisualTheme(
+    name: string,
+    variables?: DesignerVariables,
+    options?: { baseCss?: string; baseVars?: DesignerVariables; basedOnId?: string },
+  ): CustomTheme {
     const dv = variables || { ...defaultVariables }
-    const css = generateCSS(dv)
-    return createTheme(name, css, { editorMode: 'visual', designerVariables: dv })
+    const css = options?.baseCss
+      ? generateCSS(dv, options.baseVars ? { skipBase: options.baseVars } : undefined)
+      : generateCSS(dv)
+    return createTheme(name, css, {
+      editorMode: 'visual',
+      designerVariables: dv,
+      baseCss: options?.baseCss,
+      baseVars: options?.baseVars,
+    })
   }
 
-  /** 基于当前可视化变量的最新值，重新生成 CSS 并持久化 */
+  /** 基于当前可视化变量的最新值，重新生成 CSS 并持久化（保留分层底） */
   function regenerateVisualCSS(id: string): boolean {
     const idx = customThemes.value.findIndex((t) => t.id === id)
     if (idx === -1) return false
@@ -154,7 +194,10 @@ export const useThemeStore = defineStore('themes', () => {
     const theme = customThemes.value[idx]
     if (theme.editorMode !== 'visual' || !theme.designerVariables) return false
 
-    const newCSS = generateCSS(theme.designerVariables)
+    const newCSS = generateCSS(
+      theme.designerVariables,
+      theme.baseVars ? { skipBase: theme.baseVars } : undefined,
+    )
     const updated: CustomTheme = {
       ...theme,
       css: newCSS,
@@ -185,6 +228,19 @@ export const useThemeStore = defineStore('themes', () => {
       updatedAt: new Date().toISOString(),
     }
 
+    // 可视化主题：designerVariables 变化时，用 baseVars 重生成"仅改动组"的覆盖层，
+    // 保留 baseCss 兜底；若显式传了 css（如 CSS 模式）则尊重传入值。
+    if (
+      updated.editorMode === 'visual' &&
+      updated.designerVariables &&
+      !updates.css
+    ) {
+      updated.css = generateCSS(
+        updated.designerVariables,
+        updated.baseVars ? { skipBase: updated.baseVars } : undefined,
+      )
+    }
+
     const next = [...customThemes.value]
     next[idx] = updated
     customThemes.value = next
@@ -212,6 +268,14 @@ export const useThemeStore = defineStore('themes', () => {
   function duplicateTheme(id: string, newName?: string): CustomTheme {
     const source = allThemes.value.find((t) => t.id === id)
     if (!source) throw new Error(`[themeStore] 主题 "${id}" 不存在`)
+    // 分层可视化主题：连同 baseCss/baseVars 一起复制，保留"底 + 改动"结构
+    if (source.editorMode === 'visual' && source.designerVariables) {
+      return createVisualTheme(
+        newName || `${source.name} (副本)`,
+        JSON.parse(JSON.stringify(source.designerVariables)),
+        { baseCss: source.baseCss, baseVars: source.baseVars },
+      )
+    }
     return createTheme(newName || `${source.name} (副本)`, source.css)
   }
 
@@ -239,6 +303,9 @@ export const useThemeStore = defineStore('themes', () => {
     if (theme.designerVariables) {
       data.designerVariables = theme.designerVariables
     }
+    // 分层主题导出底信息，导入时可还原"底 + 改动"结构，避免样式丢失
+    if (theme.baseCss) data.baseCss = theme.baseCss
+    if (theme.baseVars) data.baseVars = theme.baseVars
     const content = JSON.stringify(data, null, 2)
     const defaultName = `${theme.name}.mdx-theme.json`
 
@@ -251,12 +318,12 @@ export const useThemeStore = defineStore('themes', () => {
     }
   }
 
-  /** 导出主题为纯 .css 文件 */
+  /** 导出主题为纯 .css 文件（分层主题导出合成后的全量 CSS） */
   async function exportThemeCSS(id: string) {
     const theme = allThemes.value.find((t) => t.id === id)
     if (!theme) return
 
-    const content = theme.css
+    const content = composeThemeCss(theme)
     const defaultName = `${theme.name}.css`
 
     if (getBridge().isDesktop) {
@@ -289,13 +356,21 @@ export const useThemeStore = defineStore('themes', () => {
       }
 
       // 可视化主题可能只导出了 designerVariables（无 css），按需由变量重新生成 CSS
+      // 分层主题（含 baseCss/baseVars）按增量覆盖重新生成 overlay
       const css =
         data.css ||
-        (data.designerVariables ? generateCSS(data.designerVariables) : '')
+        (data.designerVariables
+          ? generateCSS(
+              data.designerVariables,
+              data.baseVars ? { skipBase: data.baseVars } : undefined,
+            )
+          : '')
 
       createTheme(finalName, css, {
         editorMode: data.editorMode || (data.designerVariables ? 'visual' : 'css'),
         designerVariables: data.designerVariables,
+        baseCss: data.baseCss,
+        baseVars: data.baseVars,
       })
       return true
     } catch {
