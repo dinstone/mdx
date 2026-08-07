@@ -338,6 +338,16 @@ function onPreviewScroll(p: number) {
   editorScrollPercent.value = p
 }
 
+async function onRevealInFinder() {
+  const path = editor.filePath
+  if (!path) return
+  try {
+    await getBridge().showItemInFolder(path)
+  } catch (e) {
+    console.error('[reveal-in-finder] failed:', e)
+  }
+}
+
 function toggleSidebar() {
   showSidebar.value = !showSidebar.value
 }
@@ -448,8 +458,11 @@ const workspaceGridColumns = computed(() => {
             :file-name="editor.fileName"
             :saved="isSaved"
             :sync-scroll-percent="editorScrollPercent"
+            :is-external="editor.isExternal"
+            :external-file-path="editor.filePath"
             @save="editor.saveFile()"
             @scroll-sync="onEditorScroll"
+            @reveal-in-finder="onRevealInFinder"
           />
         </div>
         <div

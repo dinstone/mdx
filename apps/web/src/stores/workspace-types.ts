@@ -341,3 +341,26 @@ function parentPath(path: string): string | null {
   const idx = path.lastIndexOf('/')
   return idx > 0 ? path.substring(0, idx) : null
 }
+
+/**
+ * 跨平台取 basename（文件名）。路径分隔符统一归一化为 '/'，
+ * 兼容 macOS(/) 与 Windows(\)，避免 Windows 下把完整路径当文件名返回。
+ */
+export function basename(path: string): string {
+  const norm = path.replace(/\\/g, '/')
+  return norm.split('/').pop() || path
+}
+
+/**
+ * 判断 filePath 是否等于或嵌套于 rootPath 之内（用于文件关联场景：
+ * 双击打开的 .md 是否落在某个已打开/最近工作区里）。
+ * 路径分隔符统一归一化为 '/'，兼容 macOS(/) 与 Windows(\\)。
+ */
+export function isPathInsideWorkspace(filePath: string, rootPath: string): boolean {
+  if (!rootPath || !filePath) return false
+  const fp = filePath.replace(/\\/g, '/')
+  const rp = rootPath.replace(/\\/g, '/')
+  if (fp === rp) return true
+  const prefix = rp.endsWith('/') ? rp : `${rp}/`
+  return fp.startsWith(prefix)
+}
