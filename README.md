@@ -63,7 +63,7 @@ MDX 内置了一套**色彩语义保全算法**，可在编辑器中预览微信
 
 - **MacOS**：
 
-  `MDX-darwin-amd64.zip`（Intel x86_64）
+  `MDX-darwin-x86_64.zip`（Intel x86_64）
 
   `MDX-darwin-arm64.zip`（Apple Silicon）
   
