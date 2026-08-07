@@ -19,12 +19,15 @@ const props = defineProps<{
   fileName?: string
   saved?: boolean
   syncScrollPercent?: number | null
+  isExternal?: boolean
+  externalFilePath?: string
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   save: []
   'scroll-sync': [percent: number]
+  'reveal-in-finder': []
 }>()
 
 const editorContainer = ref<HTMLDivElement>()
@@ -283,6 +286,12 @@ onMounted(() => {
     <div class="editor-header">
       <span class="editor-title">Markdown 编辑器</span>
       <span v-if="fileName" class="editor-filename">{{ fileName }}</span>
+      <button
+        v-if="isExternal && externalFilePath"
+        class="editor-reveal-btn"
+        title="在 Finder 中显示"
+        @click.stop="emit('reveal-in-finder')"
+      >📂</button>
     </div>
 
     <MarkdownToolbar
@@ -377,6 +386,26 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 220px;
+}
+
+.editor-reveal-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.15s;
+}
+.editor-reveal-btn:hover {
+  background: var(--border-light);
 }
 
 .editor-body-wrapper {

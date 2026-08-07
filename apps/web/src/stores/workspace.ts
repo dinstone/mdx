@@ -21,6 +21,7 @@ import {
   VirtualWorkspace,
   createWorkspace,
   workspaceForPath,
+  isPathInsideWorkspace,
 } from './workspace-types'
 
 import welcomeDoc from '../assets/welcome.md?raw'
@@ -118,6 +119,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       recentWorkspaces.value.find((w) => w.path === dirPath) ??
       workspaceForPath(dirPath)
     )
+  }
+
+  /**
+   * 找到「包含」给定路径的最近工作区（路径等于或嵌套于其根目录下）。
+   * 用于文件关联：双击的 .md 若落在某个最近工作区里，就复用它而非新建工作区。
+   * 找不到时返回 null。
+   */
+  function findAncestorRecent(path: string): IWorkspace | null {
+    for (const ws of recentWorkspaces.value) {
+      if (isPathInsideWorkspace(path, ws.rootPath)) return ws
+    }
+    return null
   }
 
   // ---- actions (lifecycle) ----
@@ -298,6 +311,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     moveFolder,
     // utility
     resolveWorkspace,
+    findAncestorRecent,
     addRecentWorkspace,
     removeRecentWorkspace,
     loadRecentWorkspaces,

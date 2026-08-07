@@ -10,9 +10,10 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
 import { createMarkdownParser, processHtml } from '@mdx/core'
 import { withKatexStyle } from '../utils/katexStyle'
-import { getBridge, getBrowserBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
+import { getBridge, getBrowserBridge, getDesktopBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
 import { useThemeStore } from './themes'
+import { isPathInsideWorkspace, basename } from './workspace-types'
 
 const parser = createMarkdownParser()
 
@@ -75,6 +76,9 @@ export const useEditorStore = defineStore('editor', () => {
    *   - 虚拟工作区（/Temp）→ BrowserBridge（IndexedDB）
    *   - 真实目录工作区 → DesktopBridge（Go 后端，桌面模式）或 BrowserBridge（浏览器模式） */
   function bridge(): IServiceBridge {
+    // 游离（外部）文件始终走真实文件系统（DesktopBridge），
+    // 即便当前工作区是虚拟 /Temp，也只读写磁盘上的真实文件。
+    if (isExternal.value) return getDesktopBridge() ?? getBrowserBridge()
     if (workspace.current?.kind === 'virtual') {
       return getBrowserBridge()
     }
@@ -95,6 +99,13 @@ export const useEditorStore = defineStore('editor', () => {
   const error = ref<string | null>(null)
 
   /**
+   * 当前文件是否为「游离文件」——即不属于当前工作区文件树的外部真实文件
+   * （如从 Finder 双击打开的、落在任何工作区之外的 .md）。
+   * 游离文件一律走真实文件系统（DesktopBridge），即使当前工作区是虚拟 /Temp。
+   */
+  const isExternal = ref(false)
+
+  /**
    * 抑制程序化同步（loadFile 触发 CM 的 dispatch → updateContent）时
    * 错误地将 isModified 置为 true。loadFile 期间为 true，nextTick 后恢复。
    */
@@ -112,7 +123,8 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ---- getters ----
   const isEmpty = computed(() => rawContent.value.trim() === '')
-  const fileName = computed(() => filePath.value.split('/').pop() || 'Untitled.md')
+  /** 标题栏显示名（始终只显示文件名；外部文件通过旁边的 Finder 按钮区分）。 */
+  const fileName = computed(() => basename(filePath.value) || 'Untitled.md')
   const currentThemeName = computed(() => theme.currentTheme.name)
 
   /** Renders raw markdown → themed HTML. */
@@ -157,6 +169,10 @@ export const useEditorStore = defineStore('editor', () => {
   // ---- actions ----
 
   async function loadFile(absPath: string) {
+    // 先判定是否为工作区树之外的「游离文件」。该标志决定后续 I/O 走哪个桥接层，
+    // 必须在读取前设定，否则虚拟工作区下会错误地用 IndexedDB 去读真实磁盘路径。
+    isExternal.value = !isPathInsideWorkspace(absPath, workspace.rootPath)
+
     // 切文件前，把当前未保存的编辑缓存起来
     if (filePath.value && isModified.value) {
       unsavedCache.set(filePath.value, {
@@ -307,6 +323,7 @@ export const useEditorStore = defineStore('editor', () => {
   return {
     // state
     filePath,
+    isExternal,
     rawContent,
     meta,
     isModified,
