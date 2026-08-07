@@ -40,7 +40,7 @@ concurrency:
 
 env:
   # 与 apps/wails/go.mod 中 wails v3 版本保持一致
-  WAILS3_VERSION: v3.0.0-alpha2.111
+  WAILS3_VERSION: v3.0.0-beta.4
   GO_VERSION: "1.25"
   NODE_VERSION: "22"
   PNPM_VERSION: "9"
