@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { getImageStorage } from '../services/imageStorage'
 import PreviewToc from './PreviewToc.vue'
+import { useThemeStore } from '../stores/themes'
+import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   html: string
-  syncScrollPercent?: number | null
 }>()
 
 const emit = defineEmits<{
-  'scroll-sync': [percent: number]
+  'scroll-sync': [scrollTop: number]
 }>()
 
 const container = ref<HTMLDivElement>()
 const scrollContainer = ref<HTMLDivElement>()
-const isProgrammaticScroll = ref(false)
 const showToc = ref(false)
+/** 缓存标题元素引用（顺序 = 文档顺序），高度变化时实时读取 offsetTop */
+const headingEls = ref<HTMLElement[]>([])
 
 let mermaidReady = false
 let mermaidFailed = false
@@ -89,6 +91,11 @@ watch(
     // resolveImageUrls 是异步的，期间组件可能已销毁
     if (!container.value) return
 
+    // 缓存标题元素引用，供滚动同步按标题顺序对齐
+    headingEls.value = Array.from(
+      container.value.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6'),
+    )
+
     // Mermaid rendering（限定在当前容器内）
     const nodes = container.value.querySelectorAll<HTMLElement>('.mermaid:not([data-processed])')
     if (nodes.length === 0) return
@@ -104,20 +111,35 @@ watch(
   { immediate: true },
 )
 
-function getScrollPercent(): number {
+function onPreviewScroll() {
   const el = scrollContainer.value
-  if (!el) return 0
-  const maxScroll = el.scrollHeight - el.clientHeight
-  if (maxScroll <= 0) return 0
-  return el.scrollTop / maxScroll
+  if (!el) return
+  emit('scroll-sync', el.scrollTop)
 }
 
-function onPreviewScroll() {
-  if (isProgrammaticScroll.value) {
-    isProgrammaticScroll.value = false
-    return
+/** 各标题相对滚动内容顶部的绝对位置（与 scrollTop 同坐标系） */
+function getHeadingTops(): number[] {
+  const scroller = scrollContainer.value
+  if (!scroller) return []
+  const base = scroller.getBoundingClientRect().top
+  return headingEls.value.map((el) => {
+    const r = el.getBoundingClientRect()
+    return r.top - base + scroller.scrollTop
+  })
+}
+
+function getScrollMetrics() {
+  const el = scrollContainer.value
+  if (!el) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
+  return {
+    scrollTop: el.scrollTop,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
   }
-  emit('scroll-sync', getScrollPercent())
+}
+
+function scrollToTop(top: number) {
+  scrollContainer.value?.scrollTo({ top })
 }
 
 function toggleToc() {
@@ -142,22 +164,8 @@ function navigateToHeading(id: string) {
   // 滚动到标题上方留出一点呼吸空间
   const offset = 16
   const top = target.offsetTop - scroller.offsetTop - offset
-  isProgrammaticScroll.value = true
   scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
-
-watch(
-  () => props.syncScrollPercent,
-  (percent) => {
-    if (percent == null) return
-    const el = scrollContainer.value
-    if (!el) return
-    const maxScroll = el.scrollHeight - el.clientHeight
-    if (maxScroll <= 0) return
-    isProgrammaticScroll.value = true
-    el.scrollTop = maxScroll * percent
-  },
-)
 
 onMounted(() => {
   scrollContainer.value?.addEventListener('scroll', onPreviewScroll)
@@ -167,13 +175,33 @@ onBeforeUnmount(() => {
   scrollContainer.value?.removeEventListener('scroll', onPreviewScroll)
   revokeBlobUrls()
 })
+
+defineExpose({
+  getHeadingTops,
+  getScrollMetrics,
+  scrollToTop,
+})
+
+// 底部状态栏：当前主题 + 字数统计
+const themeStore = useThemeStore()
+const editor = useEditorStore()
+
+const currentThemeName = computed(() => themeStore.currentTheme?.name || themeStore.currentThemeId)
+
+const wordCount = computed(() => {
+  const text = editor.rawContent.trim()
+  if (!text) return 0
+  const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length
+  const en = (text.match(/[a-zA-Z0-9_]+/g) || []).length
+  return cn + en
+})
 </script>
 
 <template>
   <div class="markdown-preview">
     <div class="preview-header">
       <div class="preview-header__left">
-        <span class="preview-title">实时预览</span>
+        <span class="preview-title">预览</span>
         <span class="preview-subtitle">微信排版效果</span>
       </div>
       <button
@@ -209,6 +237,17 @@ onBeforeUnmount(() => {
       <div v-if="mermaidError" class="mermaid-error">
         Mermaid 渲染失败: {{ mermaidError }}
       </div>
+    </div>
+
+    <div class="preview-footer">
+      <span class="preview-footer__item">
+        <span class="preview-footer__label">主题:</span>
+        <span class="preview-footer__value">{{ currentThemeName }}</span>
+      </span>
+      <span class="preview-footer__item">
+        <span class="preview-footer__label">字数:</span>
+        <span class="preview-footer__value">{{ wordCount }}</span>
+      </span>
     </div>
   </div>
 </template>
@@ -279,7 +318,7 @@ onBeforeUnmount(() => {
 }
 
 .preview-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -365,6 +404,45 @@ onBeforeUnmount(() => {
   border-color: #7f1d1d;
 }
 
+.preview-footer {
+  height: 45px;
+  box-sizing: border-box;
+  padding: 0 24px;
+  border-top: 1px solid var(--border-light);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.preview-footer__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-footer__label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.preview-footer__value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.preview-footer__divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-light);
+}
+
 @media (max-width: 768px) {
   .preview-container {
     padding: 16px;
@@ -372,7 +450,7 @@ onBeforeUnmount(() => {
 
   .preview-content {
     width: 100%;
-    
+
     padding: 24px 20px;
   }
 }

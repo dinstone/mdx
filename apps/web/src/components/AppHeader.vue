@@ -3,6 +3,7 @@ defineProps<{
   isDark: boolean
   isDesktop: boolean
   sidebarVisible: boolean
+  viewMode: 'split' | 'editor' | 'preview'
 }>()
 
 defineEmits<{
@@ -13,6 +14,7 @@ defineEmits<{
   openTheme: []
   copyHtml: []
   copyWechat: []
+  setViewMode: [mode: 'split' | 'editor' | 'preview']
 }>()
 </script>
 
@@ -20,10 +22,10 @@ defineEmits<{
   <header class="app-header">
     <div class="header-left">
       <div class="logo">
-        <img src="/logo.png" width="64" height="64" alt="logo" />
+        <img src="/logo.png" width="40" height="40" alt="logo" />
         <div class="logo-info">
-          <span class="logo-text">MD.X = Edit + Preview + Publish</span>
-          <span class="logo-subtitle"> Markdown 公众号排版神器</span>
+          <span class="logo-text">MD.X</span>
+          <span class="logo-subtitle">Markdown 公众号排版神器</span>
         </div>
       </div>
     </div>
@@ -43,6 +45,42 @@ defineEmits<{
           <line v-if="!sidebarVisible" x1="3" y1="21" x2="21" y2="21" />
         </svg>
       </button>
+
+      <div class="view-mode" role="group" aria-label="视图模式">
+        <button
+          class="vm-btn"
+          :class="{ active: viewMode === 'editor' }"
+          title="仅编辑"
+          @click="$emit('setViewMode', 'editor')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+        <button
+          class="vm-btn"
+          :class="{ active: viewMode === 'split' }"
+          title="分栏"
+          @click="$emit('setViewMode', 'split')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="12" y1="4" x2="12" y2="20" />
+          </svg>
+        </button>
+        <button
+          class="vm-btn"
+          :class="{ active: viewMode === 'preview' }"
+          title="仅预览"
+          @click="$emit('setViewMode', 'preview')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
 
       <button
         class="btn-icon-only"
@@ -99,7 +137,7 @@ defineEmits<{
 
 <style scoped>
 .app-header {
-  height: 72px;
+  height: 52px;
   border-radius: 0;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
@@ -109,7 +147,7 @@ defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 20px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -119,13 +157,13 @@ defineEmits<{
 .header-left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .btn-sidebar-toggle {
@@ -159,24 +197,62 @@ defineEmits<{
 .logo-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .logo-text {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.5px;
 }
 
 .logo-subtitle {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   background: var(--bg-hover);
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: var(--radius-pill);
   font-weight: 500;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  align-self: flex-start;
+}
+
+/* 视图模式分段控件 */
+.view-mode {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  border: var(--border-width) solid var(--border-light);
+}
+
+.vm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vm-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.vm-btn.active {
+  background: var(--bg-primary);
+  color: var(--accent-primary, #07c160);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .btn-icon-only {
