@@ -287,7 +287,11 @@ const showThemePanel = ref(false)
 
 function closeDesigner() {}
 
-const showSidebar = ref(true)
+const showSidebar = ref(false)
+
+// 视图模式：分栏 / 仅编辑 / 仅预览
+type ViewMode = 'split' | 'editor' | 'preview'
+const viewMode = ref<ViewMode>('split')
 
 // -- Sidebar width drag --
 const sidebarWidth = ref(280)
@@ -388,6 +392,9 @@ function onDividerMouseUp() {
 }
 
 const workspaceGridColumns = computed(() => {
+  if (viewMode.value === 'editor' || viewMode.value === 'preview') {
+    return `1fr`
+  }
   const ed = editorRatio.value * 100
   const pv = (1 - editorRatio.value) * 100
   return `${ed}% 6px ${pv}%`
@@ -400,12 +407,14 @@ const workspaceGridColumns = computed(() => {
       :is-dark="isDark"
       :is-desktop="isDesktop"
       :sidebar-visible="showSidebar"
+      :view-mode="viewMode"
       @toggle-dark="toggleDark"
       @toggle-sidebar="toggleSidebar"
       @open-storage="openStorage"
       @open-theme="openTheme"
       @copy-html="copyHtml"
       @copy-wechat="copyWechat"
+      @set-view-mode="viewMode = $event"
     />
 
     <main class="app-main" :style="{ gridTemplateColumns: mainGridColumns }">
@@ -438,7 +447,7 @@ const workspaceGridColumns = computed(() => {
       />
 
       <div class="workspace" :style="{ gridTemplateColumns: workspaceGridColumns }">
-        <div class="editor-pane">
+        <div v-show="viewMode !== 'preview'" class="editor-pane">
           <div v-if="!workspace.hasActiveFile" class="workspace-placeholder">
             <div class="placeholder-card">
               <h3>打开或新建文章</h3>
@@ -466,11 +475,12 @@ const workspaceGridColumns = computed(() => {
           />
         </div>
         <div
+          v-show="viewMode === 'split'"
           class="pane-divider"
           :class="{ 'pane-divider--dragging': isDraggingDivider }"
           @mousedown="onDividerMouseDown"
         />
-        <div class="preview-pane">
+        <div v-show="viewMode !== 'editor'" class="preview-pane">
           <div v-if="!workspace.hasActiveFile" class="workspace-placeholder">
             <div class="placeholder-card">
               <h3>实时预览</h3>

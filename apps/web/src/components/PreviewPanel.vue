@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { getImageStorage } from '../services/imageStorage'
 import PreviewToc from './PreviewToc.vue'
+import { useThemeStore } from '../stores/themes'
+import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   html: string
@@ -167,6 +169,20 @@ onBeforeUnmount(() => {
   scrollContainer.value?.removeEventListener('scroll', onPreviewScroll)
   revokeBlobUrls()
 })
+
+// 底部状态栏：当前主题 + 字数统计
+const themeStore = useThemeStore()
+const editor = useEditorStore()
+
+const currentThemeName = computed(() => themeStore.currentTheme?.name || themeStore.currentThemeId)
+
+const wordCount = computed(() => {
+  const text = editor.rawContent.trim()
+  if (!text) return 0
+  const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length
+  const en = (text.match(/[a-zA-Z0-9_]+/g) || []).length
+  return cn + en
+})
 </script>
 
 <template>
@@ -209,6 +225,17 @@ onBeforeUnmount(() => {
       <div v-if="mermaidError" class="mermaid-error">
         Mermaid 渲染失败: {{ mermaidError }}
       </div>
+    </div>
+
+    <div class="preview-footer">
+      <span class="preview-footer__item">
+        <span class="preview-footer__label">主题:</span>
+        <span class="preview-footer__value">{{ currentThemeName }}</span>
+      </span>
+      <span class="preview-footer__item">
+        <span class="preview-footer__label">字数:</span>
+        <span class="preview-footer__value">{{ wordCount }}</span>
+      </span>
     </div>
   </div>
 </template>
@@ -365,6 +392,45 @@ onBeforeUnmount(() => {
   border-color: #7f1d1d;
 }
 
+.preview-footer {
+  height: 45px;
+  box-sizing: border-box;
+  padding: 0 24px;
+  border-top: 1px solid var(--border-light);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.preview-footer__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-footer__label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.preview-footer__value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.preview-footer__divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-light);
+}
+
 @media (max-width: 768px) {
   .preview-container {
     padding: 16px;
@@ -372,7 +438,7 @@ onBeforeUnmount(() => {
 
   .preview-content {
     width: 100%;
-    
+
     padding: 24px 20px;
   }
 }
