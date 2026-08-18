@@ -12,6 +12,7 @@ import MovePicker from './components/MovePicker.vue'
 import WorkspacePicker from './components/WorkspacePicker.vue'
 import MarkdownEditor from './components/MarkdownEditor.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
+import { parseEditorHeadings, editorToPreviewTop, previewToEditorLine } from './scrollSync'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
@@ -330,17 +331,59 @@ const mainGridColumns = computed(() => {
   return `minmax(0, 1fr)`
 })
 
-// scroll sync state
-const editorScrollPercent = ref<number | null>(null)
-const previewScrollPercent = ref<number | null>(null)
+// ---- 滚动同步：基于标题锚点的分块对齐 ----
+const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
+const previewRef = ref<InstanceType<typeof PreviewPanel> | null>(null)
 
-function onEditorScroll(p: number) {
-  previewScrollPercent.value = p
+const editorHeadings = computed(() => parseEditorHeadings(editorContent.value))
+
+const SYNC_EPS = 2 // px / 行阈值，避免程序对齐触发的回环
+
+function onEditorScroll(topLine: number) {
+  const preview = previewRef.value
+  if (!preview) return
+  const metrics = preview.getScrollMetrics()
+  if (metrics.clientHeight <= 0) return
+  const maxScroll = Math.max(0, metrics.scrollHeight - metrics.clientHeight)
+  const totalLines = editorRef.value?.getLineCount() ?? editorContent.value.split('\n').length
+  const target = editorToPreviewTop(
+    topLine,
+    editorHeadings.value,
+    preview.getHeadingTops(),
+    maxScroll,
+    totalLines,
+  )
+  if (Math.abs(metrics.scrollTop - target) <= SYNC_EPS) return
+  preview.scrollToTop(target)
 }
 
-function onPreviewScroll(p: number) {
-  editorScrollPercent.value = p
+function onPreviewScroll(scrollTop: number) {
+  const editor = editorRef.value
+  const preview = previewRef.value
+  if (!editor || !preview) return
+  const totalLines = editor.getLineCount()
+  if (totalLines <= 0) return
+  const metrics = preview.getScrollMetrics()
+  const maxScroll = Math.max(0, metrics.scrollHeight - metrics.clientHeight)
+  const targetLine = previewToEditorLine(
+    scrollTop,
+    preview.getHeadingTops(),
+    editorHeadings.value,
+    maxScroll,
+    totalLines,
+  )
+  if (Math.abs(editor.getTopLine() - targetLine) <= 1) return
+  editor.scrollToLine(targetLine)
 }
+
+// 进入分栏/预览时，让预览跟上编辑器当前位置
+watch(viewMode, (mode) => {
+  if (mode === 'editor') return
+  requestAnimationFrame(() => {
+    const editor = editorRef.value
+    if (editor) onEditorScroll(editor.getTopLine())
+  })
+})
 
 async function onRevealInFinder() {
   const path = editor.filePath
@@ -463,10 +506,10 @@ const workspaceGridColumns = computed(() => {
           </div>
           <MarkdownEditor
             v-else
+            ref="editorRef"
             v-model="editorContent"
             :file-name="editor.fileName"
             :saved="isSaved"
-            :sync-scroll-percent="editorScrollPercent"
             :is-external="editor.isExternal"
             :external-file-path="editor.filePath"
             :is-dark="isDark"
@@ -488,7 +531,7 @@ const workspaceGridColumns = computed(() => {
               <p>选择文章后将在此处显示微信排版效果。</p>
             </div>
           </div>
-          <PreviewPanel v-else :html="editor.renderedHtml" :sync-scroll-percent="previewScrollPercent" @scroll-sync="onPreviewScroll" />
+          <PreviewPanel v-else ref="previewRef" :html="editor.renderedHtml" @scroll-sync="onPreviewScroll" />
         </div>
       </div>
     </main>

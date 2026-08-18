@@ -7,17 +7,17 @@ import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   html: string
-  syncScrollPercent?: number | null
 }>()
 
 const emit = defineEmits<{
-  'scroll-sync': [percent: number]
+  'scroll-sync': [scrollTop: number]
 }>()
 
 const container = ref<HTMLDivElement>()
 const scrollContainer = ref<HTMLDivElement>()
-const isProgrammaticScroll = ref(false)
 const showToc = ref(false)
+/** 缓存标题元素引用（顺序 = 文档顺序），高度变化时实时读取 offsetTop */
+const headingEls = ref<HTMLElement[]>([])
 
 let mermaidReady = false
 let mermaidFailed = false
@@ -91,6 +91,11 @@ watch(
     // resolveImageUrls 是异步的，期间组件可能已销毁
     if (!container.value) return
 
+    // 缓存标题元素引用，供滚动同步按标题顺序对齐
+    headingEls.value = Array.from(
+      container.value.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6'),
+    )
+
     // Mermaid rendering（限定在当前容器内）
     const nodes = container.value.querySelectorAll<HTMLElement>('.mermaid:not([data-processed])')
     if (nodes.length === 0) return
@@ -106,20 +111,35 @@ watch(
   { immediate: true },
 )
 
-function getScrollPercent(): number {
+function onPreviewScroll() {
   const el = scrollContainer.value
-  if (!el) return 0
-  const maxScroll = el.scrollHeight - el.clientHeight
-  if (maxScroll <= 0) return 0
-  return el.scrollTop / maxScroll
+  if (!el) return
+  emit('scroll-sync', el.scrollTop)
 }
 
-function onPreviewScroll() {
-  if (isProgrammaticScroll.value) {
-    isProgrammaticScroll.value = false
-    return
+/** 各标题相对滚动内容顶部的绝对位置（与 scrollTop 同坐标系） */
+function getHeadingTops(): number[] {
+  const scroller = scrollContainer.value
+  if (!scroller) return []
+  const base = scroller.getBoundingClientRect().top
+  return headingEls.value.map((el) => {
+    const r = el.getBoundingClientRect()
+    return r.top - base + scroller.scrollTop
+  })
+}
+
+function getScrollMetrics() {
+  const el = scrollContainer.value
+  if (!el) return { scrollTop: 0, scrollHeight: 0, clientHeight: 0 }
+  return {
+    scrollTop: el.scrollTop,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
   }
-  emit('scroll-sync', getScrollPercent())
+}
+
+function scrollToTop(top: number) {
+  scrollContainer.value?.scrollTo({ top })
 }
 
 function toggleToc() {
@@ -144,22 +164,8 @@ function navigateToHeading(id: string) {
   // 滚动到标题上方留出一点呼吸空间
   const offset = 16
   const top = target.offsetTop - scroller.offsetTop - offset
-  isProgrammaticScroll.value = true
   scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
-
-watch(
-  () => props.syncScrollPercent,
-  (percent) => {
-    if (percent == null) return
-    const el = scrollContainer.value
-    if (!el) return
-    const maxScroll = el.scrollHeight - el.clientHeight
-    if (maxScroll <= 0) return
-    isProgrammaticScroll.value = true
-    el.scrollTop = maxScroll * percent
-  },
-)
 
 onMounted(() => {
   scrollContainer.value?.addEventListener('scroll', onPreviewScroll)
@@ -168,6 +174,12 @@ onMounted(() => {
 onBeforeUnmount(() => {
   scrollContainer.value?.removeEventListener('scroll', onPreviewScroll)
   revokeBlobUrls()
+})
+
+defineExpose({
+  getHeadingTops,
+  getScrollMetrics,
+  scrollToTop,
 })
 
 // 底部状态栏：当前主题 + 字数统计
@@ -189,7 +201,7 @@ const wordCount = computed(() => {
   <div class="markdown-preview">
     <div class="preview-header">
       <div class="preview-header__left">
-        <span class="preview-title">实时预览</span>
+        <span class="preview-title">预览</span>
         <span class="preview-subtitle">微信排版效果</span>
       </div>
       <button
@@ -306,7 +318,7 @@ const wordCount = computed(() => {
 }
 
 .preview-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;

@@ -20,7 +20,6 @@ const props = defineProps<{
   modelValue: string
   fileName?: string
   saved?: boolean
-  syncScrollPercent?: number | null
   isExternal?: boolean
   externalFilePath?: string
   isDark?: boolean
@@ -29,7 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   save: []
-  'scroll-sync': [percent: number]
+  'scroll-sync': [topLine: number]
   'reveal-in-finder': []
 }>()
 
@@ -76,12 +75,28 @@ function resetFontSize() {
   persistFontSize(16)
 }
 
-function getScrollPercent(): number {
+/** 当前视口顶部对应的源码行号（0-based）。供滚动同步使用。 */
+function getTopLine(): number {
   const view = viewRef.value
   if (!view) return 0
-  const s = view.scrollDOM
-  const max = s.scrollHeight - s.clientHeight
-  return max <= 0 ? 0 : s.scrollTop / max
+  const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop)
+  return view.state.doc.lineAt(block.from).number - 1
+}
+
+/** 编辑器总行数。 */
+function getLineCount(): number {
+  const view = viewRef.value
+  return view ? view.state.doc.lines : 0
+}
+
+/** 滚动让指定行（0-based）到视口顶部。供滚动同步使用。 */
+function scrollToLine(line: number) {
+  const view = viewRef.value
+  if (!view) return
+  const clamped = Math.max(0, Math.min(line, view.state.doc.lines - 1))
+  const block = view.lineBlockAt(view.state.doc.line(clamped + 1).from)
+  isProgrammaticScroll.value = true
+  view.scrollDOM.scrollTo({ top: Math.max(0, block.top) })
 }
 
 // Toolbar insert — operates on CodeMirror's selection
@@ -112,20 +127,6 @@ watch(
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: val },
     })
-  },
-)
-
-// Sync scroll position from preview
-watch(
-  () => props.syncScrollPercent,
-  (percent) => {
-    const view = viewRef.value
-    if (!view || percent == null) return
-    const s = view.scrollDOM
-    const max = s.scrollHeight - s.clientHeight
-    if (max <= 0) return
-    isProgrammaticScroll.value = true
-    s.scrollTo({ top: max * percent })
   },
 )
 
@@ -274,13 +275,13 @@ onMounted(() => {
     parent: editorContainer.value,
   })
 
-  // Scroll sync
+  // Scroll sync — emit the top visible line so App.vue can align the preview
   const handleScroll = () => {
     if (isProgrammaticScroll.value) {
       isProgrammaticScroll.value = false
       return
     }
-    emit('scroll-sync', getScrollPercent())
+    emit('scroll-sync', getTopLine())
   }
   view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true })
 
@@ -293,12 +294,18 @@ onMounted(() => {
     viewRef.value = null
   })
 })
+
+defineExpose({
+  getTopLine,
+  getLineCount,
+  scrollToLine,
+})
 </script>
 
 <template>
   <div class="markdown-editor" :style="{ '--editor-font-size': fontSize + 'px' }">
     <div class="editor-header">
-      <span class="editor-title">Markdown 编辑器</span>
+      <span class="editor-title">编辑</span>
       <span v-if="fileName" class="editor-filename">{{ fileName }}</span>
       <button
         v-if="isExternal && externalFilePath"
