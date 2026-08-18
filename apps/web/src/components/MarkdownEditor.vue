@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { minimalSetup } from 'codemirror'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Compartment } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { tags } from '@lezer/highlight'
 import { customKeymap } from './editorShortcuts'
 import { imageDropPaste } from '../editor/imageDropPaste'
 import { processImages } from '../services/imagePipeline'
 import { useToast } from '../composables/useToast'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 import SearchPanel from './SearchPanel.vue'
+import {
+  markdownLightHighlighting,
+  markdownDarkHighlighting,
+} from '../editor/markdownTheme'
 
 const props = defineProps<{
   modelValue: string
@@ -21,6 +23,7 @@ const props = defineProps<{
   syncScrollPercent?: number | null
   isExternal?: boolean
   externalFilePath?: string
+  isDark?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +37,7 @@ const editorContainer = ref<HTMLDivElement>()
 const viewRef = ref<EditorView | null>(null)
 const isProgrammaticScroll = ref(false)
 const showSearch = ref(false)
+const highlightCompartment = new Compartment()
 const currentView = computed(() => viewRef.value as EditorView | null)
 const toast = useToast()
 
@@ -125,6 +129,20 @@ watch(
   },
 )
 
+// Reconfigure markdown syntax highlighting when the UI theme changes.
+watch(
+  () => props.isDark,
+  (isDark) => {
+    const view = viewRef.value
+    if (!view) return
+    view.dispatch({
+      effects: highlightCompartment.reconfigure(
+        isDark ? markdownDarkHighlighting : markdownLightHighlighting,
+      ),
+    })
+  },
+)
+
 const lineCount = computed(() => {
   if (!props.modelValue) return 0
   return props.modelValue.split('\n').length
@@ -200,10 +218,6 @@ onMounted(() => {
     },
   ])
 
-  const headingHighlight = HighlightStyle.define([
-    { tag: tags.heading, textDecoration: 'none', fontWeight: 'bold' },
-  ])
-
   const state = EditorState.create({
     doc: props.modelValue,
     extensions: [
@@ -211,7 +225,7 @@ onMounted(() => {
       customKeymap,
       saveKeymap,
       markdown({ codeLanguages: languages }),
-      syntaxHighlighting(headingHighlight),
+      highlightCompartment.of(props.isDark ? markdownDarkHighlighting : markdownLightHighlighting),
       imageDropPaste(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {

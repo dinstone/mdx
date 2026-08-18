@@ -469,6 +469,7 @@ const workspaceGridColumns = computed(() => {
             :sync-scroll-percent="editorScrollPercent"
             :is-external="editor.isExternal"
             :external-file-path="editor.filePath"
+            :is-dark="isDark"
             @save="editor.saveFile()"
             @scroll-sync="onEditorScroll"
             @reveal-in-finder="onRevealInFinder"
