@@ -24,7 +24,6 @@ const emit = defineEmits<{
   expandDir: [dirPath: string]
 }>()
 
-const appVersion = __APP_VERSION__
 const filter = ref('')
 const showSortMenu = ref(false)
 const sortMode = ref<'recent' | 'name-asc'>('recent')
@@ -174,14 +173,6 @@ function setSort(mode: 'recent' | 'name-asc') {
         @copy-title="$emit('copyTitle', $event)"
         @expand="$emit('expandDir', $event)"
       />
-    </div>
-
-    <div class="fs-footer">
-      <div class="fs-brand">
-        <img src="/logo.png" width="32" height="32" alt="logo" />
-        <span class="fs-brand-text">MDX</span>
-      </div>
-      <span class="fs-version">v{{ appVersion }}</span>
     </div>
   </aside>
 </template>
@@ -385,34 +376,5 @@ function setSort(mode: 'recent' | 'name-asc') {
   color: var(--text-secondary);
   padding: 24px;
   text-align: center;
-}
-
-.fs-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 45px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-top: var(--border-width) solid var(--border-light);
-  color: var(--text-tertiary);
-  font-size: 12px;
-  user-select: none;
-}
-
-.fs-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-}
-
-.fs-brand-text {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.fs-version {
-  font-weight: 500;
 }
 </style>

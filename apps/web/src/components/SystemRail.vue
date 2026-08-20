@@ -11,11 +11,14 @@ const emit = defineEmits<{
   toggleDark: []
   openSettings: []
 }>()
+
+const appVersion = __APP_VERSION__
 </script>
 
 <template>
   <aside class="system-rail">
     <img class="sys-logo" src="/logo.png" alt="MDX" />
+    <span class="sys-version">v{{ appVersion }}</span>
 
     <nav class="sys-nav">
       <button
@@ -78,24 +81,31 @@ const emit = defineEmits<{
 .system-rail {
   width: 56px;
   flex: 0 0 56px;
-  background: var(--bg-secondary);
-  border: var(--border-width) solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 0;
+  padding: 26px 0 14px;
   gap: 6px;
 }
 
 .sys-logo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   object-fit: cover;
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.sys-version {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  opacity: 0.65;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-bottom: 14px;
   user-select: none;
 }
 
@@ -135,14 +145,12 @@ const emit = defineEmits<{
 }
 
 .sys-item.active {
-  box-shadow: inset 3px 0 0 var(--accent-primary);
-  border-radius: var(--radius-md);
-  background: rgba(7, 193, 96, 0.12);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text-primary);
 }
 
 .sys-item.active:hover {
-  background: rgba(7, 193, 96, 0.18);
+  background: rgba(0, 0, 0, 0.09);
 }
 
 .sys-bottom {
