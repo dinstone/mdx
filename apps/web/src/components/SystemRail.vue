@@ -44,13 +44,13 @@ const appVersion = __APP_VERSION__
         <span class="tip">主题管理</span>
       </button>
 
-      <button class="sys-item" data-tip="图床（预留）" @click="emit('openImageHost')">
+      <button class="sys-item" data-tip="媒体管理" @click="emit('openImageHost')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <circle cx="9" cy="9" r="2" />
           <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
         </svg>
-        <span class="tip">图床（预留）</span>
+        <span class="tip">媒体管理</span>
       </button>
     </nav>
 

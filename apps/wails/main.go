@@ -39,6 +39,7 @@ func main() {
 			application.NewService(&service.SystemService{}),
 			application.NewService(&service.UpdateService{}),
 			application.NewService(&service.ImageService{}),
+			application.NewService(&service.AttachmentService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

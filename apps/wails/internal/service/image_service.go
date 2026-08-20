@@ -12,7 +12,7 @@ import (
 	"mdx/internal/workspace"
 )
 
-// ImageService 管理桌面端图片存储，以 .mdx-images/ 隐藏目录作为本地图床。
+// ImageService 管理桌面端图片存储，以 .mdx-assets/img/ 隐藏目录作为本地图床。
 // baseDir 从当前工作区自动推断，无需外部初始化。
 type ImageService struct {
 	baseDir string
@@ -28,12 +28,31 @@ func (s *ImageService) ensureBaseDir() error {
 	if root == "" {
 		return fmt.Errorf("ImageService not initialized: no workspace open")
 	}
-	dir := filepath.Join(root, ".mdx-images")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	imgDir := filepath.Join(root, ".mdx-assets", "img")
+	migrateLegacyDir(root, ".mdx-images", imgDir)
+	if err := os.MkdirAll(imgDir, 0o755); err != nil {
 		return fmt.Errorf("create image dir: %w", err)
 	}
-	s.baseDir = dir
+	s.baseDir = imgDir
 	return nil
+}
+
+// migrateLegacyDir 将旧的隐藏资源目录（如 .mdx-images）整体迁移到新的
+// .mdx-assets/<sub> 目录下，便于统一备份。仅当目标子目录尚不存在时执行，
+// 避免覆盖已有数据；迁移失败不影响新目录的创建。
+func migrateLegacyDir(root, oldName, newDir string) {
+	oldDir := filepath.Join(root, oldName)
+	if _, err := os.Stat(oldDir); err != nil {
+		return // 旧目录不存在，无需迁移
+	}
+	// 确保 .mdx-assets 父目录存在
+	if err := os.MkdirAll(filepath.Dir(newDir), 0o755); err != nil {
+		return
+	}
+	if _, err := os.Stat(newDir); err == nil {
+		return // 目标已存在，保留旧目录不处理（防止覆盖）
+	}
+	_ = os.Rename(oldDir, newDir)
 }
 
 // hashContent 对原始 base64 数据做 SHA-256，返回前 8 位 hex。
@@ -48,7 +67,7 @@ func (s *ImageService) resolvePath(hash string) string {
 	return filepath.Join(s.baseDir, hash)
 }
 
-// Save 将 base64 编码的图片数据存入 .mdx-images/{hash}，返回哈希值。
+// Save 将 base64 编码的图片数据存入 .mdx-assets/img/{hash}，返回哈希值。
 // 如果文件已存在（相同内容哈希），直接返回哈希，不重复写入。
 func (s *ImageService) Save(base64Data string) (string, error) {
 	if err := s.ensureBaseDir(); err != nil {
@@ -110,7 +129,7 @@ func (s *ImageService) Delete(hash string) error {
 	return nil
 }
 
-// List 返回 .mdx-images/ 下所有图片文件的哈希列表。
+// List 返回 .mdx-assets/img/ 下所有图片文件的哈希列表。
 func (s *ImageService) List() ([]string, error) {
 	if err := s.ensureBaseDir(); err != nil {
 		return nil, nil
@@ -132,6 +151,56 @@ func (s *ImageService) List() ([]string, error) {
 		hashes = append(hashes, e.Name())
 	}
 	return hashes, nil
+}
+
+// ImageMeta 图片元数据，供前端媒体管理器展示体积/时间等。
+type ImageMeta struct {
+	Hash      string `json:"hash"`
+	Mime      string `json:"mime"`
+	Size      int64  `json:"size"`
+	CreatedAt int64  `json:"createdAt"`
+	Width     int    `json:"width"`
+	Height    int    `json:"height"`
+}
+
+// ListMeta 返回 .mdx-assets/img/ 下所有图片的元数据（含体积与修改时间）。
+func (s *ImageService) ListMeta() ([]ImageMeta, error) {
+	if err := s.ensureBaseDir(); err != nil {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(s.baseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read image dir: %w", err)
+	}
+
+	var metas []ImageMeta
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(s.baseDir, e.Name()))
+		mime := "application/octet-stream"
+		if err == nil {
+			mime = detectMimeFromContent(data)
+		}
+		metas = append(metas, ImageMeta{
+			Hash:      e.Name(),
+			Mime:      mime,
+			Size:      info.Size(),
+			CreatedAt: info.ModTime().UnixMilli(),
+			Width:     0,
+			Height:    0,
+		})
+	}
+	return metas, nil
 }
 
 // Vacuum 清理孤图：删除不在 activeHashes 中的文件。

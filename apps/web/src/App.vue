@@ -13,6 +13,7 @@ import MovePicker from './components/MovePicker.vue'
 import WorkspacePicker from './components/WorkspacePicker.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
+import MediaManager from './components/MediaManager.vue'
 import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
 import { resetImageStorage } from './services/imageStorage'
 import { useToast } from './composables/useToast'
@@ -261,8 +262,10 @@ function openStorage() {
   selectWorkspace()
 }
 
+const showMediaManager = ref(false)
+
 function openImageHost() {
-  // 图床：预留
+  showMediaManager.value = true
 }
 
 function openTheme() {
@@ -386,6 +389,10 @@ const isSaved = computed(() => !editor.isModified)
       :is-file="renameIsFile"
       @close="showRenameDialog = false"
       @confirm="confirmRename"
+    />
+    <MediaManager
+      v-if="showMediaManager"
+      @close="showMediaManager = false"
     />
     <ToastMessage />
   </div>

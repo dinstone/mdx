@@ -2,7 +2,7 @@
  * ImageStorage — 图片持久化抽象层
  *
  * 浏览器模式 → IndexedDB
- * 桌面模式   → Go ImageService（操作 {workspace}/.mdx-images/）
+ * 桌面模式   → Go ImageService（操作 {workspace}/.mdx-assets/img/）
  */
 
 import { getBridge, getBrowserBridge } from '../bridge'
