@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MdxLogo from './MdxLogo.vue'
+
 defineProps<{
   isDark: boolean
   workspaceOpen: boolean
@@ -15,7 +17,7 @@ const emit = defineEmits<{
 
 <template>
   <aside class="system-rail">
-    <img class="sys-logo" src="/logo.png" alt="MDX" />
+    <MdxLogo :size="36" class="sys-logo" />
 
     <nav class="sys-nav">
       <button

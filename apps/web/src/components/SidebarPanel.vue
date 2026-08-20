@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { FileEntry } from '../bridge'
 import FileTree from './FileTree.vue'
+import MdxLogo from './MdxLogo.vue'
 
 const props = defineProps<{
   title: string
@@ -178,7 +179,7 @@ function setSort(mode: 'recent' | 'name-asc') {
 
     <div class="fs-footer">
       <div class="fs-brand">
-        <img src="/logo.png" width="32" height="32" alt="logo" />
+        <MdxLogo :size="32" />
         <span class="fs-brand-text">MDX</span>
       </div>
       <span class="fs-version">v{{ appVersion }}</span>
