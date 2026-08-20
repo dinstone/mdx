@@ -124,7 +124,7 @@ export const useEditorStore = defineStore('editor', () => {
   // ---- getters ----
   const isEmpty = computed(() => rawContent.value.trim() === '')
   /** 标题栏显示名（始终只显示文件名；外部文件通过旁边的 Finder 按钮区分）。 */
-  const fileName = computed(() => basename(filePath.value) || 'Untitled.md')
+  const fileName = computed(() => basename(filePath.value) || '未打开文档')
   const currentThemeName = computed(() => theme.currentTheme.name)
 
   /** Renders raw markdown → themed HTML. */
@@ -317,6 +317,9 @@ export const useEditorStore = defineStore('editor', () => {
     () => workspace.activeFileId,
     (id) => {
       if (id && id !== filePath.value) loadFile(id)
+      // activeFileId 被清空（删文件 / 删目录连带 / 切工作区） → 同步重置编辑器，
+      // 让 ContentHeader 的文件名/保存点等不再指向已不存在的文件。
+      else if (!id && filePath.value) reset()
     },
   )
 

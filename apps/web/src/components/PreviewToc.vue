@@ -16,13 +16,47 @@ const props = defineProps<{
   scrollContainer?: HTMLElement | null
   /** 是否可见 */
   visible?: boolean
+  /** 受控高亮（编辑模式下按源码标题文本匹配，传入即优先于滚动自动计算） */
+  activeText?: string
 }>()
 
 const emit = defineEmits<{
-  'navigate': [id: string]
+  'navigate': [item: TocItem]
 }>()
 
 const activeId = ref<string>('')
+
+/** 把标题文本规范化（去标记/链接/空白），用于编辑模式与目录条目匹配 */
+function normalizeHeadingText(s: string): string {
+  return s
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[*_`~]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+}
+
+/** 按源码标题文本匹配目录条目 id（精确优先，模糊兜底） */
+function matchTextToId(text: string): string {
+  const target = normalizeHeadingText(text)
+  if (!target) return ''
+  for (const item of tocItems.value) {
+    if (normalizeHeadingText(item.text) === target) return item.id
+  }
+  for (const item of tocItems.value) {
+    const t = normalizeHeadingText(item.text)
+    if (t.includes(target) || target.includes(t)) return item.id
+  }
+  return ''
+}
+
+/** 实际高亮项：优先使用受控 activeText（编辑模式），否则用预览滚动自动计算 */
+const displayActiveId = computed(() => {
+  if (props.activeText) {
+    const id = matchTextToId(props.activeText)
+    if (id) return id
+  }
+  return activeId.value
+})
 
 /**
  * 从 HTML 字符串中提取 h1-h6 标题和 id。
@@ -58,7 +92,7 @@ const tocItems = computed<TocItem[]>(() => {
 })
 
 function onItemClick(item: TocItem) {
-  emit('navigate', item.id)
+  emit('navigate', item)
 }
 
 function findHeadingElement(id: string): HTMLElement | null {
@@ -129,7 +163,7 @@ function itemStyle(level: number) {
         v-for="item in tocItems"
         :key="item.id"
         class="preview-toc__item"
-        :class="{ 'preview-toc__item--active': activeId === item.id }"
+        :class="{ 'preview-toc__item--active': displayActiveId === item.id }"
         :style="itemStyle(item.level)"
         :title="item.text"
         @click="onItemClick(item)"

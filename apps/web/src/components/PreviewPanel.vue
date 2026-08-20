@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { getImageStorage } from '../services/imageStorage'
-import PreviewToc from './PreviewToc.vue'
-import { useThemeStore } from '../stores/themes'
-import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   html: string
@@ -15,7 +12,6 @@ const emit = defineEmits<{
 
 const container = ref<HTMLDivElement>()
 const scrollContainer = ref<HTMLDivElement>()
-const showToc = ref(false)
 /** 缓存标题元素引用（顺序 = 文档顺序），高度变化时实时读取 offsetTop */
 const headingEls = ref<HTMLElement[]>([])
 
@@ -142,19 +138,8 @@ function scrollToTop(top: number) {
   scrollContainer.value?.scrollTo({ top })
 }
 
-function toggleToc() {
-  showToc.value = !showToc.value
-}
-
-// 点击目录浮层以外的区域时自动收起
-function onPreviewBodyClick(e: MouseEvent) {
-  if (!showToc.value) return
-  const target = e.target as HTMLElement | null
-  if (target && target.closest('.preview-toc')) return
-  showToc.value = false
-}
-
-function navigateToHeading(id: string) {
+/** 导航到指定标题（按 id 定位预览内渲染的标题元素）。供提升后的目录浮层调用。 */
+function scrollToHeading(id: string) {
   const scroller = scrollContainer.value
   if (!scroller || !container.value) return
 
@@ -180,74 +165,23 @@ defineExpose({
   getHeadingTops,
   getScrollMetrics,
   scrollToTop,
-})
-
-// 底部状态栏：当前主题 + 字数统计
-const themeStore = useThemeStore()
-const editor = useEditorStore()
-
-const currentThemeName = computed(() => themeStore.currentTheme?.name || themeStore.currentThemeId)
-
-const wordCount = computed(() => {
-  const text = editor.rawContent.trim()
-  if (!text) return 0
-  const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length
-  const en = (text.match(/[a-zA-Z0-9_]+/g) || []).length
-  return cn + en
+  scrollToHeading,
+  getContainer: () => container.value,
+  getScrollContainer: () => scrollContainer.value,
 })
 </script>
 
 <template>
   <div class="markdown-preview">
-    <div class="preview-header">
-      <div class="preview-header__left">
-        <span class="preview-title">预览</span>
-        <span class="preview-subtitle">微信排版效果</span>
-      </div>
-      <button
-        class="preview-header__toc-btn"
-        :class="{ 'preview-header__toc-btn--active': showToc }"
-        title="目录"
-        aria-label="目录"
-        @click="toggleToc"
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="8" y1="6" x2="21" y2="6" />
-          <line x1="8" y1="12" x2="21" y2="12" />
-          <line x1="8" y1="18" x2="21" y2="18" />
-          <circle cx="3.5" cy="6" r="1" />
-          <circle cx="3.5" cy="12" r="1" />
-          <circle cx="3.5" cy="18" r="1" />
-        </svg>
-      </button>
-    </div>
-    <div class="preview-body" @click="onPreviewBodyClick">
-      <div ref="scrollContainer" class="preview-container" :class="{ 'preview-container--with-toc': showToc }">
+    <div class="preview-body">
+      <div ref="scrollContainer" class="preview-container">
         <div class="preview-content">
           <div ref="container" v-html="html" />
         </div>
       </div>
-      <PreviewToc
-        :html="html"
-        :container="container"
-        :scroll-container="scrollContainer"
-        :visible="showToc"
-        @navigate="navigateToHeading"
-      />
       <div v-if="mermaidError" class="mermaid-error">
         Mermaid 渲染失败: {{ mermaidError }}
       </div>
-    </div>
-
-    <div class="preview-footer">
-      <span class="preview-footer__item">
-        <span class="preview-footer__label">主题:</span>
-        <span class="preview-footer__value">{{ currentThemeName }}</span>
-      </span>
-      <span class="preview-footer__item">
-        <span class="preview-footer__label">字数:</span>
-        <span class="preview-footer__value">{{ wordCount }}</span>
-      </span>
     </div>
   </div>
 </template>
@@ -260,77 +194,6 @@ const wordCount = computed(() => {
   background: var(--bg-secondary);
   border-radius: 0;
   overflow: hidden;
-}
-
-.preview-header {
-  height: 56px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-primary);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.preview-header__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.preview-header__toc-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: var(--radius-sm, 4px);
-  border: 1px solid var(--border-light);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.preview-header__toc-btn svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.preview-header__toc-btn:hover {
-  border-color: var(--accent-primary, #07c160);
-  color: var(--accent-primary, #07c160);
-}
-
-.preview-header__toc-btn--active {
-  background: var(--accent-primary, #07c160);
-  color: #ffffff;
-  border-color: var(--accent-primary, #07c160);
-}
-
-.preview-header__toc-btn--active:hover {
-  color: #ffffff;
-  opacity: 0.9;
-}
-
-.preview-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.preview-subtitle {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  padding: 2px 8px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
 }
 
 .preview-body {
@@ -370,7 +233,6 @@ const wordCount = computed(() => {
   overflow-x: auto;
 }
 
-[data-ui-theme="dark"] .preview-header,
 [data-ui-theme="dark"] .preview-container {
   background: var(--bg-primary);
 }
@@ -402,45 +264,6 @@ const wordCount = computed(() => {
   background: #450a0a;
   color: #fca5a5;
   border-color: #7f1d1d;
-}
-
-.preview-footer {
-  height: 45px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-top: 1px solid var(--border-light);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.preview-footer__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.preview-footer__label {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-.preview-footer__value {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.preview-footer__divider {
-  width: 1px;
-  height: 14px;
-  background: var(--border-light);
 }
 
 @media (max-width: 768px) {
