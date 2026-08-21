@@ -10,11 +10,41 @@
 import { computed, onMounted, ref } from 'vue'
 import { useMedia, type MediaItem } from '../composables/useMedia'
 import { useToast } from '../composables/useToast'
+import { useWorkspaceStore } from '../stores/workspace'
+import { getBridge } from '../bridge'
 
 const emit = defineEmits<{ close: [] }>()
 
 const toast = useToast()
 const { items, loading, error, lastScanMs, scan, deleteMedia, cleanupOrphans, basename } = useMedia()
+
+const ws = useWorkspaceStore()
+/** 桌面端 + 真实文件系统工作区 → 媒体存于本地 .mdx-assets；其余（虚拟/Temp、浏览器模式）走 IndexedDB */
+const isDesktop = getBridge().isDesktop
+const onRealFs = computed(
+  () => isDesktop && ws.current?.kind !== 'virtual' && !!ws.rootPath,
+)
+const wsName = computed(() => ws.current?.name || '未命名工作空间')
+const rootDir = computed(() => ws.rootPath)
+const imgDir = computed(() => (onRealFs.value ? joinPath(rootDir.value, '.mdx-assets/img') : ''))
+const attDir = computed(() => (onRealFs.value ? joinPath(rootDir.value, '.mdx-assets/att') : ''))
+const storageNote = computed(() =>
+  isDesktop ? '浏览器本地数据库 (IndexedDB)' : '浏览器本地数据库 (IndexedDB)',
+)
+
+function joinPath(root: string, rel: string): string {
+  return root.replace(/\/+$/, '') + '/' + rel
+}
+
+async function copyPath(p: string) {
+  if (!p) return
+  try {
+    await navigator.clipboard.writeText(p)
+    toast.success('路径已复制')
+  } catch {
+    toast.error('复制失败')
+  }
+}
 
 const tab = ref<'image' | 'attachment'>('image')
 const search = ref('')
@@ -97,12 +127,40 @@ function refresh() {
     <div class="mm-overlay" @click.self="emit('close')">
       <div class="mm-panel">
         <header class="mm-header">
-          <h3>媒体管理</h3>
+          <div class="mm-header-left">
+            <h3>媒体管理</h3>
+            <span class="mm-wsname" :title="wsName">
+              <span class="mm-wsdot" :class="{ virtual: ws.current?.kind === 'virtual' }"></span>
+              {{ wsName }}
+              <span v-if="ws.current?.kind === 'virtual'" class="mm-badge">虚拟</span>
+            </span>
+          </div>
           <div class="mm-header-actions">
             <button class="mm-btn" :disabled="loading" @click="refresh">↻ 刷新</button>
             <button class="mm-btn mm-close" @click="emit('close')">✕</button>
           </div>
         </header>
+
+        <div class="mm-wsinfo">
+          <template v-if="onRealFs">
+            <div class="mm-path-row">
+              <span class="mm-path-label">根目录</span>
+              <code class="mm-path" :title="'点击复制：' + rootDir" @click="copyPath(rootDir)">{{ rootDir }}</code>
+            </div>
+            <div class="mm-path-row">
+              <span class="mm-path-label">图片</span>
+              <code class="mm-path" :title="'点击复制：' + imgDir" @click="copyPath(imgDir)">{{ imgDir }}</code>
+            </div>
+            <div class="mm-path-row">
+              <span class="mm-path-label">附件</span>
+              <code class="mm-path" :title="'点击复制：' + attDir" @click="copyPath(attDir)">{{ attDir }}</code>
+            </div>
+          </template>
+          <div v-else class="mm-path-row">
+            <span class="mm-path-label">存储</span>
+            <code class="mm-path mm-path--note">{{ storageNote }}</code>
+          </div>
+        </div>
 
         <div class="mm-tabs">
           <button :class="{ active: tab === 'image' }" @click="tab = 'image'">
@@ -134,7 +192,7 @@ function refresh() {
 
             <section v-if="referencedImages.length" class="mm-group">
               <div class="mm-group-title">
-                ✓ 正常引用 ({{ referencedImages.length }}) · {{ referencedImages.length }} 个被 vault 内文档使用
+                ✓ 正常引用 ({{ referencedImages.length }}) · {{ referencedImages.length }} 个被文档使用
               </div>
               <div class="mm-grid">
                 <div v-for="it in referencedImages" :key="it.hash" class="mm-card">
@@ -182,7 +240,7 @@ function refresh() {
 
             <section v-if="referencedAttachments.length" class="mm-group">
               <div class="mm-group-title">
-                ✓ 正常引用 ({{ referencedAttachments.length }}) · {{ referencedAttachments.length }} 个被 vault 内文档使用
+                ✓ 正常引用 ({{ referencedAttachments.length }}) · {{ referencedAttachments.length }} 个被文档使用
               </div>
               <div class="mm-grid">
                 <div v-for="it in referencedAttachments" :key="it.hash" class="mm-card">
@@ -297,6 +355,102 @@ function refresh() {
 .mm-close {
   font-size: 14px;
   line-height: 1;
+}
+
+.mm-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mm-wsname {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm-wsdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--accent-primary, #07c160);
+}
+
+.mm-wsdot.virtual {
+  background: #f59e0b;
+}
+
+.mm-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9a6b00;
+  background: rgba(255, 179, 0, 0.16);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.mm-wsinfo {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-light, #eee);
+  background: var(--bg-secondary, #fafafa);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mm-path-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mm-path-label {
+  flex: none;
+  width: 44px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+}
+
+.mm-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: var(--text-primary, #333);
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-light, #eee);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mm-path:hover {
+  border-color: var(--accent-primary, #07c160);
+  color: var(--accent-primary, #07c160);
+}
+
+.mm-path--note {
+  cursor: default;
+  color: var(--text-secondary, #888);
+}
+
+.mm-path--note:hover {
+  border-color: var(--border-light, #eee);
+  color: var(--text-secondary, #888);
 }
 
 .mm-btn--danger {
