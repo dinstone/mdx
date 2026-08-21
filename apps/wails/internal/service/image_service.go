@@ -13,13 +13,13 @@ import (
 )
 
 // ImageService 管理桌面端图片存储，以 .mdx-assets/img/ 隐藏目录作为本地图床。
-// baseDir 从当前工作区自动推断，无需外部初始化。
+// baseDir 从当前工作空间自动推断，无需外部初始化。
 type ImageService struct {
 	baseDir string
 }
 
-// ensureBaseDir 从工作区状态自动设置 baseDir（懒初始化）。
-// 仅当 baseDir 为空且工作区已打开时执行。
+// ensureBaseDir 从工作空间状态自动设置 baseDir（懒初始化）。
+// 仅当 baseDir 为空且工作空间已打开时执行。
 func (s *ImageService) ensureBaseDir() error {
 	if s.baseDir != "" {
 		return nil

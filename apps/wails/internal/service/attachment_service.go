@@ -11,7 +11,7 @@ import (
 
 // AttachmentService 管理桌面端附件存储，以 .mdx-assets/att/ 隐藏目录作为本地附件库。
 // 文件名为 {hash8}{ext}（ext 由内容嗅探得到），与 Markdown 中的 att://<hash8>.<ext> 一一对应。
-// baseDir 从当前工作区自动推断，无需外部初始化。
+// baseDir 从当前工作空间自动推断，无需外部初始化。
 type AttachmentService struct {
 	baseDir string
 }

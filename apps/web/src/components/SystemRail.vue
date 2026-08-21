@@ -24,13 +24,13 @@ const appVersion = __APP_VERSION__
       <button
         class="sys-item"
         :class="{ active: workspaceOpen }"
-        data-tip="工作区"
+        data-tip="工作空间"
         @click="emit('toggleWorkspace')"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
         </svg>
-        <span class="tip">工作区</span>
+        <span class="tip">工作空间</span>
       </button>
 
       <button class="sys-item" data-tip="主题管理" @click="emit('openTheme')">

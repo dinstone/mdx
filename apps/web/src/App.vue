@@ -272,7 +272,7 @@ const showThemePanel = ref(false)
 
 function closeDesigner() {}
 
-// 工作区栏默认隐藏，由 SystemRail 的"工作区"图标展开/收起
+// 工作空间栏默认隐藏，由 SystemRail 的"工作空间"图标展开/收起
 const workspaceOpen = ref(false)
 
 // 视图模式：分栏 / 仅编辑 / 仅预览

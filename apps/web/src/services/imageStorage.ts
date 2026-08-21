@@ -40,12 +40,12 @@ export interface ImageStorage {
 
 let _storage: ImageStorage | null = null
 
-/** 工作区切换时调用，确保下次 getImageStorage() 返回正确的后端 */
+/** 工作空间切换时调用，确保下次 getImageStorage() 返回正确的后端 */
 export function resetImageStorage() {
   _storage = null
 }
 
-/** 判断当前是否为虚拟工作区（/Temp 等），是则强制走 IndexedDB */
+/** 判断当前是否为虚拟工作空间（/Temp 等），是则强制走 IndexedDB */
 function isCurrentWorkspaceVirtual(): boolean {
   try {
     return useWorkspaceStore().current?.kind === 'virtual'
@@ -57,19 +57,19 @@ function isCurrentWorkspaceVirtual(): boolean {
 
 /** 获取当前环境的 ImageStorage 单例 */
 export async function getImageStorage(): Promise<ImageStorage> {
-  // 缓存命中但工作区类型变了 → 重建
+  // 缓存命中但工作空间类型变了 → 重建
   if (_storage && isCurrentWorkspaceVirtual() !== _storage.constructor.name.startsWith('Idb')) {
     _storage = null
   }
   if (_storage) return _storage
 
-  // 桌面模式 + 真实文件系统工作区 → Go ImageService
+  // 桌面模式 + 真实文件系统工作空间 → Go ImageService
   if (getBridge().isDesktop && !isCurrentWorkspaceVirtual()) {
     const { DesktopImageStorage } = await import('./imageStorage/desktop')
     _storage = new DesktopImageStorage()
     return _storage
   }
-  // 浏览器模式 或 虚拟工作区（/Temp）→ IndexedDB
+  // 浏览器模式 或 虚拟工作空间（/Temp）→ IndexedDB
   const { IdbImageStorage } = await import('./imageStorage/idb')
   _storage = new IdbImageStorage()
   return _storage

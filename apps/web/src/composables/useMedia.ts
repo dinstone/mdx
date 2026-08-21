@@ -88,8 +88,8 @@ export function useMedia() {
     const t0 = performance.now()
     try {
       const ws = useWorkspaceStore()
-      // 读取 .md 内容必须用「当前工作区自己的 bridge」：
-      // Temp 等虚拟工作区文件存在 IndexedDB（BrowserBridge），而全局
+      // 读取 .md 内容必须用「当前工作空间自己的 bridge」：
+      // Temp 等虚拟工作空间文件存在 IndexedDB（BrowserBridge），而全局
       // getBridge() 在桌面模式下返回 Go/DesktopBridge，读不到 /Temp 下的文件，
       // 会导致引用扫描为空、所有图片被误判为孤立。
       const readBridge = ws.current?.bridge ?? getBridge()

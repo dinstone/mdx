@@ -72,12 +72,12 @@ function buildFmBlock(fields: Record<string, string>): string {
 
 export const useEditorStore = defineStore('editor', () => {
   /** Resolve bridge on every access — DesktopBridge may not be ready at store-creation time. */
-  /** 根据当前工作区类型选择正确的桥接层：
-   *   - 虚拟工作区（/Temp）→ BrowserBridge（IndexedDB）
-   *   - 真实目录工作区 → DesktopBridge（Go 后端，桌面模式）或 BrowserBridge（浏览器模式） */
+  /** 根据当前工作空间类型选择正确的桥接层：
+   *   - 虚拟工作空间（/Temp）→ BrowserBridge（IndexedDB）
+   *   - 真实目录工作空间 → DesktopBridge（Go 后端，桌面模式）或 BrowserBridge（浏览器模式） */
   function bridge(): IServiceBridge {
     // 游离（外部）文件始终走真实文件系统（DesktopBridge），
-    // 即便当前工作区是虚拟 /Temp，也只读写磁盘上的真实文件。
+    // 即便当前工作空间是虚拟 /Temp，也只读写磁盘上的真实文件。
     if (isExternal.value) return getDesktopBridge() ?? getBrowserBridge()
     if (workspace.current?.kind === 'virtual') {
       return getBrowserBridge()
@@ -99,9 +99,9 @@ export const useEditorStore = defineStore('editor', () => {
   const error = ref<string | null>(null)
 
   /**
-   * 当前文件是否为「游离文件」——即不属于当前工作区文件树的外部真实文件
-   * （如从 Finder 双击打开的、落在任何工作区之外的 .md）。
-   * 游离文件一律走真实文件系统（DesktopBridge），即使当前工作区是虚拟 /Temp。
+   * 当前文件是否为「游离文件」——即不属于当前工作空间文件树的外部真实文件
+   * （如从 Finder 双击打开的、落在任何工作空间之外的 .md）。
+   * 游离文件一律走真实文件系统（DesktopBridge），即使当前工作空间是虚拟 /Temp。
    */
   const isExternal = ref(false)
 
@@ -169,8 +169,8 @@ export const useEditorStore = defineStore('editor', () => {
   // ---- actions ----
 
   async function loadFile(absPath: string) {
-    // 先判定是否为工作区树之外的「游离文件」。该标志决定后续 I/O 走哪个桥接层，
-    // 必须在读取前设定，否则虚拟工作区下会错误地用 IndexedDB 去读真实磁盘路径。
+    // 先判定是否为工作空间树之外的「游离文件」。该标志决定后续 I/O 走哪个桥接层，
+    // 必须在读取前设定，否则虚拟工作空间下会错误地用 IndexedDB 去读真实磁盘路径。
     isExternal.value = !isPathInsideWorkspace(absPath, workspace.rootPath)
 
     // 切文件前，把当前未保存的编辑缓存起来
@@ -317,7 +317,7 @@ export const useEditorStore = defineStore('editor', () => {
     () => workspace.activeFileId,
     (id) => {
       if (id && id !== filePath.value) loadFile(id)
-      // activeFileId 被清空（删文件 / 删目录连带 / 切工作区） → 同步重置编辑器，
+      // activeFileId 被清空（删文件 / 删目录连带 / 切工作空间） → 同步重置编辑器，
       // 让 ContentHeader 的文件名/保存点等不再指向已不存在的文件。
       else if (!id && filePath.value) reset()
     },

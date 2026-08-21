@@ -74,28 +74,28 @@ if (isDesktop) {
       /**
        * 处理文件关联（从 Finder / 资源管理器双击 .md 打开）的核心逻辑。
        *
-       *   1) 文件已在「当前工作区」内 → 仅切换活动文件，工作区根不变
-       *   2) 文件在「某个最近工作区」内 → 打开那个工作区，再打开文件
-       *   3) 都不匹配（游离文件）   → 保持当前工作区不变（无则先建默认/Temp
-       *                              工作区），只在编辑器打开，不进侧边栏树
+       *   1) 文件已在「当前工作空间」内 → 仅切换活动文件，工作空间根不变
+       *   2) 文件在「某个最近工作空间」内 → 打开那个工作空间，再打开文件
+       *   3) 都不匹配（游离文件）   → 保持当前工作空间不变（无则先建默认/Temp
+       *                              工作空间），只在编辑器打开，不进侧边栏树
        *
-       * 这样双击打开文件不会再拿父目录去造一个新工作区。
+       * 这样双击打开文件不会再拿父目录去造一个新工作空间。
        */
       async function openFileFromAssociation(filePath: string) {
-        // 1) 已在当前工作区中
+        // 1) 已在当前工作空间中
         if (store.isOpen && isPathInsideWorkspace(filePath, store.rootPath)) {
           await store.setActiveFile(filePath);
           return;
         }
-        // 2) 在某个最近工作区中
+        // 2) 在某个最近工作空间中
         const ancestor = store.findAncestorRecent(filePath);
         if (ancestor) {
           await store.openWorkspace(ancestor);
           await store.setActiveFile(filePath);
           return;
         }
-        // 3) 游离文件：保持当前工作区不变（必要时先确保有一个默认/Temp 工作区），
-        //    只交给编辑器打开，不污染工作区文件树。
+        // 3) 游离文件：保持当前工作空间不变（必要时先确保有一个默认/Temp 工作空间），
+        //    只交给编辑器打开，不污染工作空间文件树。
         if (!store.isOpen) await store.open();
         const editor = useEditorStore();
         await editor.loadFile(filePath);
@@ -149,7 +149,7 @@ if (isDesktop) {
 
       if (pendingFile) {
         // Cold-launch file queued BEFORE frontend was ready.
-        // 交给统一逻辑处理：不再用父目录造工作区。
+        // 交给统一逻辑处理：不再用父目录造工作空间。
         console.log("[cold-launch] opening file association:", pendingFile);
         fileOpenedHandled = true;
         await openFileFromAssociation(pendingFile);

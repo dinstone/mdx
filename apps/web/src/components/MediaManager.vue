@@ -19,7 +19,7 @@ const toast = useToast()
 const { items, loading, error, lastScanMs, scan, deleteMedia, cleanupOrphans, basename } = useMedia()
 
 const ws = useWorkspaceStore()
-/** 桌面端 + 真实文件系统工作区 → 媒体存于本地 .mdx-assets；其余（虚拟/Temp、浏览器模式）走 IndexedDB */
+/** 桌面端 + 真实文件系统工作空间 → 媒体存于本地 .mdx-assets；其余（虚拟/Temp、浏览器模式）走 IndexedDB */
 const isDesktop = getBridge().isDesktop
 const onRealFs = computed(
   () => isDesktop && ws.current?.kind !== 'virtual' && !!ws.rootPath,

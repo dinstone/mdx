@@ -41,7 +41,7 @@ export interface AttachmentStorage {
 
 let _storage: AttachmentStorage | null = null
 
-/** 判断当前是否为虚拟工作区（/Temp 等），是则强制走 IndexedDB */
+/** 判断当前是否为虚拟工作空间（/Temp 等），是则强制走 IndexedDB */
 function isCurrentWorkspaceVirtual(): boolean {
   try {
     return useWorkspaceStore().current?.kind === 'virtual'
@@ -52,19 +52,19 @@ function isCurrentWorkspaceVirtual(): boolean {
 
 /** 获取当前环境的 AttachmentStorage 单例 */
 export async function getAttachmentStorage(): Promise<AttachmentStorage> {
-  // 缓存命中但工作区类型变了 → 重建
+  // 缓存命中但工作空间类型变了 → 重建
   if (_storage && isCurrentWorkspaceVirtual() !== _storage.constructor.name.startsWith('Idb')) {
     _storage = null
   }
   if (_storage) return _storage
 
-  // 桌面模式 + 真实文件系统工作区 → Go AttachmentService
+  // 桌面模式 + 真实文件系统工作空间 → Go AttachmentService
   if (getBridge().isDesktop && !isCurrentWorkspaceVirtual()) {
     const { DesktopAttachmentStorage } = await import('./attachmentStorage/desktop')
     _storage = new DesktopAttachmentStorage()
     return _storage
   }
-  // 浏览器模式 或 虚拟工作区（/Temp）→ IndexedDB
+  // 浏览器模式 或 虚拟工作空间（/Temp）→ IndexedDB
   const { IdbAttachmentStorage } = await import('./attachmentStorage/idb')
   _storage = new IdbAttachmentStorage()
   return _storage

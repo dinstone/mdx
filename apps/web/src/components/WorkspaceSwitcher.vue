@@ -18,7 +18,7 @@ const open = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
 
 const currentSubtitle = computed(() =>
-  props.current.kind === 'virtual' ? '虚拟工作区' : '本地工作区',
+  props.current.kind === 'virtual' ? '虚拟工作空间' : '本地工作空间',
 )
 
 const currentName = computed(() => props.current.title || props.current.name)
@@ -96,7 +96,7 @@ onUnmounted(() => {
 
     <!-- 下拉面板 -->
     <div v-if="open" class="ws-dropdown">
-      <div class="ws-dropdown-title">库列表</div>
+      <div class="ws-dropdown-title">工作空间列表</div>
       <ul class="ws-list">
         <li
           v-for="ws in workspaces"
@@ -152,7 +152,7 @@ onUnmounted(() => {
           <button
             v-if="ws.path !== current.path"
             class="ws-item-remove"
-            aria-label="移除工作区"
+            aria-label="移除工作空间"
             :title="`移除 ${ws.title || ws.name}`"
             @click="onRemove(ws, $event)"
           >
@@ -168,7 +168,7 @@ onUnmounted(() => {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
-          <span>{{ isDesktop ? '打开文件夹' : '添加工作区' }}</span>
+          <span>{{ isDesktop ? '打开文件夹' : '添加工作空间' }}</span>
         </button>
       </div>
     </div>

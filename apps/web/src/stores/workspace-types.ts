@@ -353,7 +353,7 @@ export function basename(path: string): string {
 
 /**
  * 判断 filePath 是否等于或嵌套于 rootPath 之内（用于文件关联场景：
- * 双击打开的 .md 是否落在某个已打开/最近工作区里）。
+ * 双击打开的 .md 是否落在某个已打开/最近工作空间里）。
  * 路径分隔符统一归一化为 '/'，兼容 macOS(/) 与 Windows(\\)。
  */
 export function isPathInsideWorkspace(filePath: string, rootPath: string): boolean {
