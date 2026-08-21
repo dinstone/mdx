@@ -171,7 +171,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   /**
    * Open a specific workspace explicitly (e.g. picked from the
-   * WorkspacePicker or re-opened after DesktopBridge init).
+   * WorkspaceSwitcher or re-opened after DesktopBridge init).
    *
    * Sets current immediately so that loading state is visible; the openSeq
    * counter discards stale results when overlapping calls occur.

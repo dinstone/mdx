@@ -27,7 +27,7 @@ const emit = defineEmits<{
   copyWechat: []
   copyHtml: []
   revealInFinder: []
-  selectWorkspace: []
+  openWorkspaceFolder: []
 }>()
 
 const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
@@ -272,7 +272,7 @@ function onContentBodyClick(e: MouseEvent) {
       <div class="placeholder-card">
         <h3>打开或新建文章</h3>
         <p>在左侧工作区选择一个文件，或点击新建按钮开始编辑。</p>
-        <button class="btn-primary" @click="emit('selectWorkspace')">切换工作区</button>
+        <button class="btn-primary" @click="emit('openWorkspaceFolder')">选择工作区</button>
       </div>
     </div>
 

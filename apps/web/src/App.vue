@@ -10,7 +10,6 @@ import SystemRail from './components/SystemRail.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
 import ContentArea from './components/ContentArea.vue'
 import MovePicker from './components/MovePicker.vue'
-import WorkspacePicker from './components/WorkspacePicker.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import MediaManager from './components/MediaManager.vue'
@@ -25,7 +24,6 @@ const editor = useEditorStore()
 const themeStore = useThemeStore()
 const toast = useToast()
 
-const showWorkspacePicker = ref(false)
 const workspacePickerList = computed(() => {
   const list = workspace.recentWorkspaces
   if (!list.some((w) => w.path === '/Temp')) {
@@ -101,12 +99,7 @@ async function pickDesktopFolder() {
   }
 }
 
-function selectWorkspace() {
-  showWorkspacePicker.value = true
-}
-
 async function onSelectWorkspace(ws: IWorkspace) {
-  showWorkspacePicker.value = false
   if (!ws) return
   try {
     await workspace.openWorkspace(ws)
@@ -116,7 +109,6 @@ async function onSelectWorkspace(ws: IWorkspace) {
 }
 
 function onOpenWorkspaceFolder() {
-  showWorkspacePicker.value = false
   pickDesktopFolder()
 }
 function onRemoveWorkspace(ws: IWorkspace) {
@@ -258,10 +250,6 @@ function copyWechat() {
   }
 }
 
-function openStorage() {
-  selectWorkspace()
-}
-
 const showMediaManager = ref(false)
 
 function openImageHost() {
@@ -327,11 +315,16 @@ const isSaved = computed(() => !editor.isModified)
         :entries="workspace.entries"
         :active-path="workspace.activeFileId"
         :workspace-open="workspace.isOpen"
+        :current-workspace="workspace.current ?? undefined"
+        :recent-workspaces="workspacePickerList"
+        :is-desktop="isDesktop"
         @select="workspace.setActiveFile"
         @refresh="workspace.refresh()"
         @create-file="createFile"
         @create-folder="createFolder"
-        @select-workspace="selectWorkspace"
+        @select-workspace-ws="onSelectWorkspace"
+        @open-workspace-folder="onOpenWorkspaceFolder"
+        @remove-workspace="onRemoveWorkspace"
         @rename="onRenamePicker"
         @delete="deleteEntry"
         @move-picker="onMovePicker"
@@ -355,7 +348,7 @@ const isSaved = computed(() => !editor.isModified)
       @copy-wechat="copyWechat"
       @copy-html="copyHtml"
       @reveal-in-finder="onRevealInFinder"
-      @select-workspace="selectWorkspace"
+      @open-workspace-folder="onOpenWorkspaceFolder"
     />
 
     <ThemeSelector
@@ -372,16 +365,6 @@ const isSaved = computed(() => !editor.isModified)
       :entries="workspace.entries"
       @close="showMovePicker = false"
       @select="confirmMove"
-    />
-    <WorkspacePicker
-      :open="showWorkspacePicker"
-      :current-path="workspace.rootPath"
-      :recent-workspaces="workspacePickerList"
-      :is-desktop="isDesktop"
-      @close="showWorkspacePicker = false"
-      @select="onSelectWorkspace"
-      @open-folder="onOpenWorkspaceFolder"
-      @remove="onRemoveWorkspace"
     />
     <RenameDialog
       :open="showRenameDialog"
