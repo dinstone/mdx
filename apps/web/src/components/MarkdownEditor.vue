@@ -8,6 +8,7 @@ import { languages } from '@codemirror/language-data'
 import { customKeymap } from './editorShortcuts'
 import { imageDropPaste } from '../editor/imageDropPaste'
 import { processImages } from '../services/imagePipeline'
+import { getAttachmentStorage } from '../services/attachmentStorage'
 import { useToast } from '../composables/useToast'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 import SearchPanel from './SearchPanel.vue'
@@ -209,6 +210,28 @@ async function onImageUpload(files: File[]) {
   }
 }
 
+/** 工具栏附件上传：保存到附件存储，并在光标处插入 [文件名](att://<hash8>.<ext>) 链接 */
+async function onAttachmentUpload(files: File[]) {
+  if (!viewRef.value) return
+  const view = viewRef.value
+  try {
+    const storage = await getAttachmentStorage()
+    const pos = view.state.selection.main.from
+    let markdown = ''
+    for (const file of files) {
+      const key = await storage.save(file, file.name)
+      markdown += `[${file.name}](att://${key})\n`
+    }
+    view.dispatch({
+      changes: { from: pos, insert: markdown },
+      selection: { anchor: pos + markdown.length },
+    })
+    toast.success(`已上传 ${files.length} 个附件`)
+  } catch (e: any) {
+    toast.error(`附件上传失败: ${e?.message || '未知错误'}`)
+  }
+}
+
 onMounted(() => {
   if (!editorContainer.value) return
 
@@ -351,6 +374,7 @@ defineExpose({
       @quote="insertSnippet('> ', '')"
       @link="insertSnippet('[', '](url)')"
       @image-upload="onImageUpload"
+      @attachment-upload="onAttachmentUpload"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
       @search="showSearch = true"
     />

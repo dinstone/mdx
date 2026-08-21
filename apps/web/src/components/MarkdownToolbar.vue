@@ -14,6 +14,7 @@ const emit = defineEmits<{
   quote: []
   link: []
   'image-upload': [files: File[]]
+  'attachment-upload': [files: File[]]
   table: []
   search: []
 }>()
@@ -49,6 +50,21 @@ function onImageChange(e: Event) {
   const files = input.files
   if (!files || files.length === 0) return
   emit('image-upload', Array.from(files))
+  // 重置 input 以便重复选同一文件
+  input.value = ''
+}
+
+const attachmentInputRef = ref<HTMLInputElement>()
+
+function onAttachmentClick() {
+  attachmentInputRef.value?.click()
+}
+
+function onAttachmentChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = input.files
+  if (!files || files.length === 0) return
+  emit('attachment-upload', Array.from(files))
   // 重置 input 以便重复选同一文件
   input.value = ''
 }
@@ -155,6 +171,18 @@ onBeforeUnmount(() => {
       multiple
       style="display:none"
       @change="onImageChange"
+    />
+
+    <!-- 附件上传按钮 -->
+    <button class="toolbar-btn" title="上传附件" @click="onAttachmentClick">
+      <span class="tool-icon">📎</span>
+    </button>
+    <input
+      ref="attachmentInputRef"
+      type="file"
+      multiple
+      style="display:none"
+      @change="onAttachmentChange"
     />
 
     <SyntaxHelpPopover />

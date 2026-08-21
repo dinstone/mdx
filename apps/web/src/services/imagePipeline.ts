@@ -96,7 +96,7 @@ async function compressViaCanvas(
 /**
  * 生成内容哈希（SHA-256 前 8 位 hex）
  */
-async function hashBlob(blob: Blob): Promise<string> {
+export async function hashBlob(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer()
   const digest = await crypto.subtle.digest('SHA-256', buf)
   const hex = [...new Uint8Array(digest)]

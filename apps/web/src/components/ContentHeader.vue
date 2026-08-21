@@ -18,11 +18,12 @@ const emit = defineEmits<{
 <template>
   <header class="content-header">
     <div class="ch-left">
-      <span
-        class="save-dot"
-        :class="saved ? 'saved' : 'dirty'"
-        :title="saved ? '已保存' : '未保存'"
-      ></span>
+      <svg class="file-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="8" y1="13" x2="16" y2="13" />
+        <line x1="8" y1="17" x2="16" y2="17" />
+      </svg>
       <span class="file-name">{{ fileName || '未命名' }}</span>
       <button
         v-if="isExternal"
@@ -107,19 +108,9 @@ const emit = defineEmits<{
   min-width: 0;
 }
 
-.save-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.file-icon {
   flex: none;
-}
-
-.save-dot.saved {
-  background: var(--accent-primary);
-}
-
-.save-dot.dirty {
-  background: #f59e0b;
+  color: var(--text-secondary);
 }
 
 .file-name {

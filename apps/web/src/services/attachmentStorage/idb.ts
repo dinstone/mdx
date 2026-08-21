@@ -6,6 +6,7 @@
  */
 
 import type { AttachmentStorage, AttachmentMeta } from '../attachmentStorage'
+import { hashBlob } from '../imagePipeline'
 
 const DB_NAME = 'mdx-attachments'
 const DB_VERSION = 1
@@ -34,6 +35,47 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
+/** 根据 MIME 类型推断扩展名（与 Go AttachmentService 的 extFromMime 保持一致） */
+function extFromMime(mime: string): string {
+  switch (mime) {
+    case 'image/png':
+      return '.png'
+    case 'image/jpeg':
+      return '.jpg'
+    case 'image/gif':
+      return '.gif'
+    case 'image/webp':
+      return '.webp'
+    case 'image/svg+xml':
+      return '.svg'
+    case 'application/pdf':
+      return '.pdf'
+    case 'application/msword':
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+      return '.doc'
+    case 'application/vnd.ms-excel':
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+      return '.xls'
+    case 'application/vnd.ms-powerpoint':
+    case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+      return '.ppt'
+    case 'application/zip':
+      return '.zip'
+    case 'text/plain':
+      return '.txt'
+    case 'text/markdown':
+      return '.md'
+    default:
+      return ''
+  }
+}
+
+/** 从原始文件名提取扩展名（含点） */
+function extFromName(name: string): string {
+  const m = name.trim().match(/\.([a-zA-Z0-9]+)$/)
+  return m ? `.${m[1].toLowerCase()}` : ''
+}
+
 function promisify<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result)
@@ -54,12 +96,14 @@ export class IdbAttachmentStorage implements AttachmentStorage {
   }
 
   async save(blob: Blob, name: string): Promise<string> {
-    const key = `${Date.now()}-${name}`
+    const hash = await hashBlob(blob)
+    const ext = extFromMime(blob.type) || extFromName(name)
+    const key = hash + ext
     const store = await this._store('readwrite')
     const record: AttachmentRecord = {
       key,
       blob,
-      mime: blob.type,
+      mime: blob.type || 'application/octet-stream',
       name,
       size: blob.size,
       createdAt: Date.now(),
