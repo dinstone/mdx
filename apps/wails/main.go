@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"log"
 	"runtime"
@@ -27,6 +26,7 @@ func init() {
 
 func main() {
 	workspaceSvc := &service.WorkspaceService{}
+	updateSvc := &service.UpdateService{}
 
 	app := application.New(application.Options{
 		Name:             "MDX",
@@ -37,7 +37,7 @@ func main() {
 			application.NewService(&service.FolderService{}),
 			application.NewService(workspaceSvc),
 			application.NewService(&service.SystemService{}),
-			application.NewService(&service.UpdateService{}),
+			application.NewService(updateSvc),
 			application.NewService(&service.ImageService{}),
 			application.NewService(&service.AttachmentService{}),
 		},
@@ -66,6 +66,10 @@ func main() {
 	}); err != nil {
 		log.Fatalf("updater: Init: %v", err)
 	}
+	// Hand the running app + updater to the UpdateService so it can drive the
+	// background auto-check on launch and push availability to the frontend.
+	service.SetApp(app)
+	service.SetUpdater(app.Updater)
 
 	menu := app.NewMenu()
 	if runtime.GOOS == "darwin" {
@@ -98,8 +102,8 @@ func main() {
 	helpMenu.AddSeparator()
 	helpMenu.Add("检查更新…").OnClick(func(_ *application.Context) {
 		go func() {
-			if err := app.Updater.CheckAndInstall(context.Background()); err != nil {
-				log.Printf("[updater] check failed: %v", err)
+			if err := updateSvc.InstallUpdate(); err != nil {
+				log.Printf("[updater] install failed: %v", err)
 			}
 		}()
 	})

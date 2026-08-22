@@ -47,6 +47,15 @@ export interface PlatformInfo {
   version: string
 }
 
+/** Result of an update availability check, mirrored from the Go UpdateService. */
+export interface CheckUpdateResult {
+  hasUpdate: boolean
+  version: string
+  name: string
+  notes: string
+  url: string
+}
+
 // ---------------------------------------------------------------------------
 // Bridge contract — every platform adapter must satisfy this interface
 // ---------------------------------------------------------------------------
@@ -85,6 +94,14 @@ export interface IServiceBridge {
   getAppVersion(): Promise<string>
   openExternal(url: string): Promise<void>
   showItemInFolder(absPath: string): Promise<void>
+
+  // ---- Update ----
+  /** Starts a one-shot background update check (idempotent). */
+  startAutoUpdateCheck(): Promise<void>
+  /** Runs a full check + download + install of any available update. */
+  installUpdate(): Promise<void>
+  /** Returns the cached (or freshly checked) update availability result. */
+  getLastUpdate(): Promise<CheckUpdateResult | null>
 
   // ---- Runtime detection ----
   /** Whether this bridge is backed by a native Wails backend. */

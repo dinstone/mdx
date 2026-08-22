@@ -18,6 +18,8 @@ import { useWorkspaceStore } from "./stores/workspace";
 import { useEditorStore } from "./stores/editor";
 import { isPathInsideWorkspace } from "./stores/workspace-types";
 import { initDesktop, getDesktopBridge } from "./bridge";
+import { useToast } from "./composables/useToast";
+import type { CheckUpdateResult } from "./bridge/types";
 
 // Restore the UI theme before Vue renders to avoid a flash of the wrong mode.
 (function restoreTheme() {
@@ -132,6 +134,48 @@ if (isDesktop) {
           );
         }
       });
+
+      // ---------- Background update notification ----------
+      // Go runs a one-shot update check a few seconds after launch and, when a
+      // newer release exists, emits "updater:available". We then fetch the
+      // details and surface a persistent toast with an "立即更新" action.
+      const toast = useToast();
+
+      Events.On("updater:available", (event: any) => {
+        console.log("[event] updater:available", event?.data);
+        const bridge = getDesktopBridge();
+        bridge
+          ?.getLastUpdate()
+          .then((info: CheckUpdateResult | null) => {
+            if (info && info.hasUpdate) {
+              showUpdateToast(info);
+            }
+          })
+          .catch((e) =>
+            console.error("[event] updater:available fetch failed:", e),
+          );
+      });
+
+      function showUpdateToast(info: CheckUpdateResult) {
+        const label = info.name ? `${info.name} (v${info.version})` : `v${info.version}`;
+        toast.action(
+          `发现新版本 ${label}，点击更新`,
+          "立即更新",
+          () => {
+            const bridge = getDesktopBridge();
+            bridge
+              ?.installUpdate()
+              .catch((e) => console.error("[update] install failed:", e));
+          },
+          0, // persist until the user acts or dismisses
+        );
+      }
+
+      // Kick off the background auto-check now that the listener is registered.
+      // The Go side also waits a few seconds, so this is race-free.
+      getDesktopBridge()?.startAutoUpdateCheck().catch((e) =>
+        console.error("[update] startAutoUpdateCheck failed:", e),
+      );
 
       // ---------- Cold-launch file association ----------
       // Calling GetPendingOpenFile signals "frontend ready" to Go.

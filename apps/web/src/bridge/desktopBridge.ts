@@ -12,11 +12,13 @@ import type {
   FileEntry,
   WorkspaceState,
   PlatformInfo,
+  CheckUpdateResult,
 } from './types'
 import * as FileService from '../../bindings/mdx/internal/service/fileservice'
 import * as FolderService from '../../bindings/mdx/internal/service/folderservice'
 import * as WorkspaceService from '../../bindings/mdx/internal/service/workspaceservice'
 import * as SystemService from '../../bindings/mdx/internal/service/systemservice'
+import * as UpdateService from '../../bindings/mdx/internal/service/updateservice'
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class DesktopBridge implements IServiceBridge {
@@ -140,5 +142,23 @@ export class DesktopBridge implements IServiceBridge {
 
   async showItemInFolder(absPath: string): Promise<void> {
     await SystemService.ShowItemInFolder(absPath)
+  }
+
+  // -- Update ---------------------------------------------------------------
+
+  /** Kicks off the one-shot background update check (no-op if already running). */
+  async startAutoUpdateCheck(): Promise<void> {
+    await UpdateService.StartAutoCheck()
+  }
+
+  /** Triggers a full check + download + install of any available update. */
+  async installUpdate(): Promise<void> {
+    await UpdateService.InstallUpdate()
+  }
+
+  /** Returns the cached/fresh update availability result, or null on error. */
+  async getLastUpdate(): Promise<CheckUpdateResult | null> {
+    const result = await UpdateService.GetLastUpdate()
+    return (result ?? null) as CheckUpdateResult | null
   }
 }
