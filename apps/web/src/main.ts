@@ -18,6 +18,8 @@ import { useWorkspaceStore } from "./stores/workspace";
 import { useEditorStore } from "./stores/editor";
 import { isPathInsideWorkspace } from "./stores/workspace-types";
 import { initDesktop, getDesktopBridge } from "./bridge";
+import { useToast } from "./composables/useToast";
+import type { CheckUpdateResult } from "./bridge/types";
 
 // Restore the UI theme before Vue renders to avoid a flash of the wrong mode.
 (function restoreTheme() {
@@ -74,28 +76,28 @@ if (isDesktop) {
       /**
        * 处理文件关联（从 Finder / 资源管理器双击 .md 打开）的核心逻辑。
        *
-       *   1) 文件已在「当前工作区」内 → 仅切换活动文件，工作区根不变
-       *   2) 文件在「某个最近工作区」内 → 打开那个工作区，再打开文件
-       *   3) 都不匹配（游离文件）   → 保持当前工作区不变（无则先建默认/Temp
-       *                              工作区），只在编辑器打开，不进侧边栏树
+       *   1) 文件已在「当前工作空间」内 → 仅切换活动文件，工作空间根不变
+       *   2) 文件在「某个最近工作空间」内 → 打开那个工作空间，再打开文件
+       *   3) 都不匹配（游离文件）   → 保持当前工作空间不变（无则先建默认/Temp
+       *                              工作空间），只在编辑器打开，不进侧边栏树
        *
-       * 这样双击打开文件不会再拿父目录去造一个新工作区。
+       * 这样双击打开文件不会再拿父目录去造一个新工作空间。
        */
       async function openFileFromAssociation(filePath: string) {
-        // 1) 已在当前工作区中
+        // 1) 已在当前工作空间中
         if (store.isOpen && isPathInsideWorkspace(filePath, store.rootPath)) {
           await store.setActiveFile(filePath);
           return;
         }
-        // 2) 在某个最近工作区中
+        // 2) 在某个最近工作空间中
         const ancestor = store.findAncestorRecent(filePath);
         if (ancestor) {
           await store.openWorkspace(ancestor);
           await store.setActiveFile(filePath);
           return;
         }
-        // 3) 游离文件：保持当前工作区不变（必要时先确保有一个默认/Temp 工作区），
-        //    只交给编辑器打开，不污染工作区文件树。
+        // 3) 游离文件：保持当前工作空间不变（必要时先确保有一个默认/Temp 工作空间），
+        //    只交给编辑器打开，不污染工作空间文件树。
         if (!store.isOpen) await store.open();
         const editor = useEditorStore();
         await editor.loadFile(filePath);
@@ -133,6 +135,48 @@ if (isDesktop) {
         }
       });
 
+      // ---------- Background update notification ----------
+      // Go runs a one-shot update check a few seconds after launch and, when a
+      // newer release exists, emits "updater:available". We then fetch the
+      // details and surface a persistent toast with an "立即更新" action.
+      const toast = useToast();
+
+      Events.On("updater:available", (event: any) => {
+        console.log("[event] updater:available", event?.data);
+        const bridge = getDesktopBridge();
+        bridge
+          ?.getLastUpdate()
+          .then((info: CheckUpdateResult | null) => {
+            if (info && info.hasUpdate) {
+              showUpdateToast(info);
+            }
+          })
+          .catch((e) =>
+            console.error("[event] updater:available fetch failed:", e),
+          );
+      });
+
+      function showUpdateToast(info: CheckUpdateResult) {
+        const label = info.name ? `${info.name} (v${info.version})` : `v${info.version}`;
+        toast.action(
+          `发现新版本 ${label}，点击更新`,
+          "立即更新",
+          () => {
+            const bridge = getDesktopBridge();
+            bridge
+              ?.installUpdate()
+              .catch((e) => console.error("[update] install failed:", e));
+          },
+          0, // persist until the user acts or dismisses
+        );
+      }
+
+      // Kick off the background auto-check now that the listener is registered.
+      // The Go side also waits a few seconds, so this is race-free.
+      getDesktopBridge()?.startAutoUpdateCheck().catch((e) =>
+        console.error("[update] startAutoUpdateCheck failed:", e),
+      );
+
       // ---------- Cold-launch file association ----------
       // Calling GetPendingOpenFile signals "frontend ready" to Go.
       // From this point on, ApplicationOpenedWithFile will emit "file:opened"
@@ -149,7 +193,7 @@ if (isDesktop) {
 
       if (pendingFile) {
         // Cold-launch file queued BEFORE frontend was ready.
-        // 交给统一逻辑处理：不再用父目录造工作区。
+        // 交给统一逻辑处理：不再用父目录造工作空间。
         console.log("[cold-launch] opening file association:", pendingFile);
         fileOpenedHandled = true;
         await openFileFromAssociation(pendingFile);

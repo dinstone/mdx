@@ -29,7 +29,7 @@ import welcomeDoc from '../assets/welcome.md?raw'
 const RECENT_WORKSPACES_KEY = 'mdx-recent-workspaces'
 const MAX_RECENT_WORKSPACES = 10
 
-/** Temp 虚拟工作区首次创建时写入的欢迎文档内容（源文件见 src/assets/welcome.md，经 Vite ?raw 导入）。 */
+/** Temp 虚拟工作空间首次创建时写入的欢迎文档内容（源文件见 src/assets/welcome.md，经 Vite ?raw 导入）。 */
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   // ---- state ----
@@ -107,7 +107,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     saveRecentWorkspaces()
   }
 
-  /** 从最近工作区列表中移除，仅清理记录，不删除实际文件夹 */
+  /** 从最近工作空间列表中移除，仅清理记录，不删除实际文件夹 */
   function removeRecentWorkspace(ws: IWorkspace) {
     recentWorkspaces.value = recentWorkspaces.value.filter((w) => w.path !== ws.path)
     saveRecentWorkspaces()
@@ -122,8 +122,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   /**
-   * 找到「包含」给定路径的最近工作区（路径等于或嵌套于其根目录下）。
-   * 用于文件关联：双击的 .md 若落在某个最近工作区里，就复用它而非新建工作区。
+   * 找到「包含」给定路径的最近工作空间（路径等于或嵌套于其根目录下）。
+   * 用于文件关联：双击的 .md 若落在某个最近工作空间里，就复用它而非新建工作空间。
    * 找不到时返回 null。
    */
   function findAncestorRecent(path: string): IWorkspace | null {
@@ -156,9 +156,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   /**
-   * 首次创建 Temp 虚拟工作区时，若其中还没有任何 md 文件，
+   * 首次创建 Temp 虚拟工作空间时，若其中还没有任何 md 文件，
    * 自动写入一份欢迎文档并设为当前活动文件，方便用户上手。
-   * 若工作区已包含文件（如用户之前用过 Temp 后清空、或来自真实目录），
+   * 若工作空间已包含文件（如用户之前用过 Temp 后清空、或来自真实目录），
    * 则不重复播种。
    */
   async function seedTempWorkspace(ws: IWorkspace) {
@@ -171,7 +171,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   /**
    * Open a specific workspace explicitly (e.g. picked from the
-   * WorkspacePicker or re-opened after DesktopBridge init).
+   * WorkspaceSwitcher or re-opened after DesktopBridge init).
    *
    * Sets current immediately so that loading state is visible; the openSeq
    * counter discards stale results when overlapping calls occur.

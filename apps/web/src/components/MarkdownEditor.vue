@@ -8,6 +8,7 @@ import { languages } from '@codemirror/language-data'
 import { customKeymap } from './editorShortcuts'
 import { imageDropPaste } from '../editor/imageDropPaste'
 import { processImages } from '../services/imagePipeline'
+import { getAttachmentStorage } from '../services/attachmentStorage'
 import { useToast } from '../composables/useToast'
 import MarkdownToolbar from './MarkdownToolbar.vue'
 import SearchPanel from './SearchPanel.vue'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   save: []
   'scroll-sync': [topLine: number]
   'reveal-in-finder': []
+  cursor: [line: number, col: number]
 }>()
 
 const editorContainer = ref<HTMLDivElement>()
@@ -97,6 +99,30 @@ function scrollToLine(line: number) {
   const block = view.lineBlockAt(view.state.doc.line(clamped + 1).from)
   isProgrammaticScroll.value = true
   view.scrollDOM.scrollTo({ top: Math.max(0, block.top) })
+}
+
+/** 按标题文本滚动编辑器到对应行（供目录在编辑模式导航）。 */
+function scrollToHeading(text: string) {
+  const view = viewRef.value
+  if (!view || !text) return
+  const doc = view.state.doc
+  const target = text.trim()
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i)
+    const m = line.text.match(/^#{1,6}\s+(.+?)\s*$/)
+    if (!m) continue
+    const plain = m[1]
+      .replace(/[*_`~]/g, '')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .trim()
+    if (!plain) continue
+    if (plain === target || plain.includes(target) || target.includes(plain)) {
+      scrollToLine(i - 1)
+      view.dispatch({ selection: { anchor: line.from } })
+      view.focus()
+      return
+    }
+  }
 }
 
 // Toolbar insert — operates on CodeMirror's selection
@@ -184,6 +210,28 @@ async function onImageUpload(files: File[]) {
   }
 }
 
+/** 工具栏附件上传：保存到附件存储，并在光标处插入 [文件名](att://<hash8>.<ext>) 链接 */
+async function onAttachmentUpload(files: File[]) {
+  if (!viewRef.value) return
+  const view = viewRef.value
+  try {
+    const storage = await getAttachmentStorage()
+    const pos = view.state.selection.main.from
+    let markdown = ''
+    for (const file of files) {
+      const key = await storage.save(file, file.name)
+      markdown += `[${file.name}](att://${key})\n`
+    }
+    view.dispatch({
+      changes: { from: pos, insert: markdown },
+      selection: { anchor: pos + markdown.length },
+    })
+    toast.success(`已上传 ${files.length} 个附件`)
+  } catch (e: any) {
+    toast.error(`附件上传失败: ${e?.message || '未知错误'}`)
+  }
+}
+
 onMounted(() => {
   if (!editorContainer.value) return
 
@@ -232,6 +280,11 @@ onMounted(() => {
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit('update:modelValue', update.state.doc.toString())
+        }
+        if (update.selectionSet || update.docChanged) {
+          const head = update.state.selection.main.head
+          const line = update.state.doc.lineAt(head)
+          emit('cursor', line.number, head - line.from + 1)
         }
       }),
       EditorView.theme({
@@ -299,22 +352,16 @@ defineExpose({
   getTopLine,
   getLineCount,
   scrollToLine,
+  scrollToHeading,
+  zoomIn,
+  zoomOut,
+  resetFontSize,
+  getFontSize: () => fontSize.value,
 })
 </script>
 
 <template>
   <div class="markdown-editor" :style="{ '--editor-font-size': fontSize + 'px' }">
-    <div class="editor-header">
-      <span class="editor-title">编辑</span>
-      <span v-if="fileName" class="editor-filename">{{ fileName }}</span>
-      <button
-        v-if="isExternal && externalFilePath"
-        class="editor-reveal-btn"
-        title="在 Finder 中显示"
-        @click.stop="emit('reveal-in-finder')"
-      >📂</button>
-    </div>
-
     <MarkdownToolbar
       @bold="insertSnippet('**', '**')"
       @italic="insertSnippet('*', '*')"
@@ -327,6 +374,7 @@ defineExpose({
       @quote="insertSnippet('> ', '')"
       @link="insertSnippet('[', '](url)')"
       @image-upload="onImageUpload"
+      @attachment-upload="onAttachmentUpload"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
       @search="showSearch = true"
     />
@@ -335,23 +383,6 @@ defineExpose({
 
     <div class="editor-body-wrapper">
       <div ref="editorContainer" class="cm-container" />
-    </div>
-
-    <div class="editor-footer">
-      <div class="editor-stats">
-        <span class="editor-stat">行数: {{ lineCount }}</span>
-        <span class="editor-stat">字数: {{ wordCount }}</span>
-      </div>
-      <div class="editor-right">
-        <div class="font-size-control">
-          <button class="fsz-btn" title="缩小 (⌘-)" @click="zoomOut">−</button>
-          <span class="fsz-val" title="重置 (⌘0)" @click="resetFontSize">{{ fontSize }}px</span>
-          <button class="fsz-btn" title="放大 (⌘+)" @click="zoomIn">+</button>
-        </div>
-        <div class="save-indicator" :class="saved ? 'saved' : 'unsaved'">
-          {{ saveStatusText }}
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -364,69 +395,6 @@ defineExpose({
   background: var(--bg-primary);
   border-radius: 0;
   overflow: hidden;
-}
-
-.editor-header {
-  height: 56px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.editor-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.editor-title::before {
-  content: '';
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(7, 193, 96, 0.2);
-}
-
-.editor-filename {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 220px;
-}
-
-.editor-reveal-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  padding: 0;
-  transition: background 0.15s;
-}
-.editor-reveal-btn:hover {
-  background: var(--border-light);
 }
 
 .editor-body-wrapper {
@@ -461,97 +429,4 @@ defineExpose({
   background: transparent;
 }
 
-.editor-footer {
-  height: 45px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-top: 1px solid var(--border-light);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.editor-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.editor-stat {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-
-.save-indicator {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  transition: all 0.2s ease;
-}
-
-.save-indicator.saved {
-  color: var(--text-tertiary);
-}
-
-.save-indicator.unsaved {
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.editor-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.fsz-btn {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.fsz-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.fsz-val {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  min-width: 32px;
-  text-align: center;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 0;
-  transition: all 0.15s ease;
-}
-
-.fsz-val:hover {
-  color: var(--accent-primary);
-  background: var(--bg-hover);
-}
 </style>

@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { FileEntry } from '../bridge'
+import type { IWorkspace } from '../stores/workspace-types'
 import FileTree from './FileTree.vue'
+import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
 const props = defineProps<{
-  title: string
+  title?: string
   rootPath?: string
   entries: FileEntry[]
   activePath?: string
   workspaceOpen?: boolean
+  currentWorkspace?: IWorkspace
+  recentWorkspaces?: IWorkspace[]
+  isDesktop?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -16,22 +21,44 @@ const emit = defineEmits<{
   refresh: []
   createFile: [dirPath: string]
   createFolder: [dirPath: string]
-  selectWorkspace: []
   rename: [path: string]
   delete: [path: string]
   movePicker: [path: string]
   copyTitle: [title: string]
   expandDir: [dirPath: string]
+  selectWorkspaceWs: [ws: IWorkspace]
+  openWorkspaceFolder: []
+  removeWorkspace: [ws: IWorkspace]
 }>()
 
-const appVersion = __APP_VERSION__
 const filter = ref('')
 const showSortMenu = ref(false)
 const sortMode = ref<'recent' | 'name-asc'>('recent')
+const sortWrapperRef = ref<HTMLElement>()
 
-function getBaseName(path: string) {
-  return path.split('/').filter(Boolean).pop() || path
+function closeSortMenu() {
+  showSortMenu.value = false
 }
+
+function onDocClick(e: MouseEvent) {
+  if (showSortMenu.value && sortWrapperRef.value && !sortWrapperRef.value.contains(e.target as Node)) {
+    closeSortMenu()
+  }
+}
+
+function onKeyEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeSortMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKeyEsc)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKeyEsc)
+})
 
 function filterEntries(entries: FileEntry[]): FileEntry[] {
   if (!filter.value.trim()) return entries
@@ -67,54 +94,52 @@ function setSort(mode: 'recent' | 'name-asc') {
 <template>
   <aside class="file-sidebar">
     <div class="fs-header">
-        <div
-        class="fs-workspace-info"
-        :title="rootPath || '切换工作区'"
-        @click="$emit('selectWorkspace')"
+      <WorkspaceSwitcher
+        v-if="currentWorkspace"
+        :current="currentWorkspace"
+        :workspaces="recentWorkspaces ?? []"
+        :is-desktop="!!isDesktop"
+        @select="(ws) => $emit('selectWorkspaceWs', ws)"
+        @open-folder="$emit('openWorkspaceFolder')"
+        @remove="(ws) => $emit('removeWorkspace', ws)"
+      />
+    </div>
+
+    <div class="fs-toolbar">
+      <button
+        class="fs-btn-icon"
+        title="新建文章"
+        :disabled="!workspaceOpen"
+        @click="$emit('createFile', rootPath || '')"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2" />
-          <polyline points="2 17 12 22 22 17" />
-          <polyline points="2 12 12 17 22 12" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span>{{ rootPath ? getBaseName(rootPath) : '切换工作区' }}</span>
-      </div>
-      <div class="fs-actions">
-        <button
-          class="fs-btn-icon"
-          title="刷新文件列表"
-          :disabled="!workspaceOpen"
-          @click="$emit('refresh')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-        </button>
-        <button
-          class="fs-btn-icon"
-          title="新建文件夹"
-          :disabled="!workspaceOpen"
-          @click="$emit('createFolder', rootPath || '')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            <line x1="12" y1="11" x2="12" y2="17" />
-            <line x1="9" y1="14" x2="15" y2="14" />
-          </svg>
-        </button>
-        <button
-          class="fs-btn-icon"
-          title="新建文章"
-          :disabled="!workspaceOpen"
-          @click="$emit('createFile', rootPath || '')"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
+      </button>
+      <button
+        class="fs-btn-icon"
+        title="新建文件夹"
+        :disabled="!workspaceOpen"
+        @click="$emit('createFolder', rootPath || '')"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <line x1="12" y1="11" x2="12" y2="17" />
+          <line x1="9" y1="14" x2="15" y2="14" />
+        </svg>
+      </button>
+      <button
+        class="fs-btn-icon"
+        title="刷新文件列表"
+        :disabled="!workspaceOpen"
+        @click="$emit('refresh')"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
+      </button>
     </div>
 
     <div class="fs-search">
@@ -129,7 +154,7 @@ function setSort(mode: 'recent' | 'name-asc') {
           placeholder="搜索文件..."
         />
       </div>
-      <div class="fs-sort-wrapper">
+      <div class="fs-sort-wrapper" ref="sortWrapperRef">
         <button class="fs-btn-icon fs-sort-btn" title="排序方式" @click="showSortMenu = !showSortMenu">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 11h4" />
@@ -175,14 +200,6 @@ function setSort(mode: 'recent' | 'name-asc') {
         @expand="$emit('expandDir', $event)"
       />
     </div>
-
-    <div class="fs-footer">
-      <div class="fs-brand">
-        <img src="/logo.png" width="32" height="32" alt="logo" />
-        <span class="fs-brand-text">MDX</span>
-      </div>
-      <span class="fs-version">v{{ appVersion }}</span>
-    </div>
   </aside>
 </template>
 
@@ -197,45 +214,19 @@ function setSort(mode: 'recent' | 'name-asc') {
 .fs-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
   box-sizing: border-box;
-  padding: 0 24px;
-  border-bottom: var(--border-width) solid var(--border-light);
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-light);
   user-select: none;
 }
 
-.fs-workspace-info {
+.fs-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: var(--radius-pill);
-  transition: all 0.2s ease;
-  max-width: 180px;
-  background-color: transparent;
-  opacity: 0.9;
-}
-
-.fs-workspace-info:hover {
-  background-color: var(--bg-hover);
-  opacity: 1;
-}
-
-.fs-workspace-info span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.fs-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px 12px;
 }
 
 .fs-btn-icon {
@@ -267,7 +258,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   height: 50px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--border-light);
-  padding: 0 24px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -286,6 +277,7 @@ function setSort(mode: 'recent' | 'name-asc') {
   transform: translateY(-50%);
   color: var(--text-tertiary);
   pointer-events: none;
+  z-index: 2;
 }
 
 .fs-search-wrapper input {
@@ -385,34 +377,5 @@ function setSort(mode: 'recent' | 'name-asc') {
   color: var(--text-secondary);
   padding: 24px;
   text-align: center;
-}
-
-.fs-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 45px;
-  box-sizing: border-box;
-  padding: 0 24px;
-  border-top: var(--border-width) solid var(--border-light);
-  color: var(--text-tertiary);
-  font-size: 12px;
-  user-select: none;
-}
-
-.fs-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-}
-
-.fs-brand-text {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.fs-version {
-  font-weight: 500;
 }
 </style>

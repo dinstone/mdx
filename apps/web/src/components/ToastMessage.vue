@@ -2,6 +2,11 @@
 import { useToast } from '../composables/useToast'
 
 const { toasts, dismiss } = useToast()
+
+function runAction(t: { id: number; action?: { handler: () => void } }) {
+  t.action?.handler()
+  dismiss(t.id)
+}
 </script>
 
 <template>
@@ -19,6 +24,12 @@ const { toasts, dismiss } = useToast()
           <span v-else-if="t.type === 'error'" class="toast-icon">&#10007;</span>
           <span v-else class="toast-icon">&#9432;</span>
           <span class="toast-text">{{ t.message }}</span>
+          <button
+            v-if="t.action"
+            class="toast-action"
+            type="button"
+            @click.stop="runAction(t)"
+          >{{ t.action.label }}</button>
         </div>
       </transition-group>
     </div>
@@ -82,6 +93,28 @@ const { toasts, dismiss } = useToast()
 .toast--info .toast-icon {
   background: #3b82f6;
   color: #fff;
+}
+
+.toast-action {
+  margin-left: 4px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: #07c160;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.toast-action:hover {
+  opacity: 0.9;
+}
+
+.toast-action:active {
+  transform: scale(0.96);
 }
 
 /* transition */

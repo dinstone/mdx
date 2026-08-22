@@ -1,7 +1,7 @@
 /**
  * DesktopImageStorage — 桌面端图片存储（Go ImageService 代理）
  *
- * 图片序列化为 base64 后通过 Wails bridge 存入 {workspace}/.mdx-images/。
+ * 图片序列化为 base64 后通过 Wails bridge 存入 {workspace}/.mdx-assets/img/。
  */
 
 import type { ImageStorage, ImageMeta } from '../imageStorage'
@@ -86,17 +86,31 @@ export class DesktopImageStorage implements ImageStorage {
   async list(): Promise<ImageMeta[]> {
     try {
       const svc = await this._service()
-      const hashes: string[] = (await svc.List()) ?? []
-      return hashes.map((h) => ({
-        hash: h,
-        mime: 'image/png', // 从文件系统读取时不跟踪 mime，保持兼容
-        width: 0,
-        height: 0,
-        originalSize: 0,
-        createdAt: 0,
+      const metas: any[] = (await svc.ListMeta()) ?? []
+      return metas.map((m) => ({
+        hash: m.hash,
+        mime: m.mime || 'image/png',
+        width: m.width || 0,
+        height: m.height || 0,
+        originalSize: m.size || 0,
+        createdAt: m.createdAt || 0,
       }))
     } catch {
-      return []
+      // 回退到旧 List（仅返回哈希）以保持兼容
+      try {
+        const svc = await this._service()
+        const hashes: string[] = (await svc.List()) ?? []
+        return hashes.map((h) => ({
+          hash: h,
+          mime: 'image/png',
+          width: 0,
+          height: 0,
+          originalSize: 0,
+          createdAt: 0,
+        }))
+      } catch {
+        return []
+      }
     }
   }
 
