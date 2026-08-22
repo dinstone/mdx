@@ -87,8 +87,8 @@ const appVersion = __APP_VERSION__
 }
 
 .sys-logo {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   object-fit: cover;
   display: block;
