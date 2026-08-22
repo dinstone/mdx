@@ -28,7 +28,9 @@ const appVersion = __APP_VERSION__
         @click="emit('toggleWorkspace')"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+          <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+          <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+          <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
         </svg>
         <span class="tip">工作空间</span>
       </button>
@@ -142,13 +144,9 @@ const appVersion = __APP_VERSION__
   color: var(--text-primary);
 }
 
-.sys-item.active {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--text-primary);
-}
-
+.sys-item.active,
 .sys-item.active:hover {
-  background: rgba(0, 0, 0, 0.09);
+  color: var(--accent-primary, #07c160);
 }
 
 .sys-bottom {

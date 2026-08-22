@@ -25,16 +25,12 @@ const onRealFs = computed(
   () => isDesktop && ws.current?.kind !== 'virtual' && !!ws.rootPath,
 )
 const wsName = computed(() => ws.current?.name || '未命名工作空间')
-const rootDir = computed(() => ws.rootPath)
-const imgDir = computed(() => (onRealFs.value ? joinPath(rootDir.value, '.mdx-assets/img') : ''))
-const attDir = computed(() => (onRealFs.value ? joinPath(rootDir.value, '.mdx-assets/att') : ''))
+const storageDir = computed(() =>
+  onRealFs.value && ws.rootPath ? ws.rootPath.replace(/\/+$/, '') + '/.mdx-assets' : '',
+)
 const storageNote = computed(() =>
   isDesktop ? '浏览器本地数据库 (IndexedDB)' : '浏览器本地数据库 (IndexedDB)',
 )
-
-function joinPath(root: string, rel: string): string {
-  return root.replace(/\/+$/, '') + '/' + rel
-}
 
 async function copyPath(p: string) {
   if (!p) return
@@ -43,6 +39,15 @@ async function copyPath(p: string) {
     toast.success('路径已复制')
   } catch {
     toast.error('复制失败')
+  }
+}
+
+async function openStorageInExplorer() {
+  if (!storageDir.value) return
+  try {
+    await getBridge().showItemInFolder(storageDir.value)
+  } catch (e: any) {
+    toast.error('打开失败：' + (e?.message || e))
   }
 }
 
@@ -142,23 +147,26 @@ function refresh() {
         </header>
 
         <div class="mm-wsinfo">
-          <template v-if="onRealFs">
-            <div class="mm-path-row">
-              <span class="mm-path-label">根目录</span>
-              <code class="mm-path" :title="'点击复制：' + rootDir" @click="copyPath(rootDir)">{{ rootDir }}</code>
-            </div>
-            <div class="mm-path-row">
-              <span class="mm-path-label">图片</span>
-              <code class="mm-path" :title="'点击复制：' + imgDir" @click="copyPath(imgDir)">{{ imgDir }}</code>
-            </div>
-            <div class="mm-path-row">
-              <span class="mm-path-label">附件</span>
-              <code class="mm-path" :title="'点击复制：' + attDir" @click="copyPath(attDir)">{{ attDir }}</code>
-            </div>
-          </template>
-          <div v-else class="mm-path-row">
+          <div class="mm-path-row">
             <span class="mm-path-label">存储</span>
-            <code class="mm-path mm-path--note">{{ storageNote }}</code>
+            <template v-if="onRealFs">
+              <code
+                class="mm-path"
+                :title="'点击复制：' + storageDir"
+                @click="copyPath(storageDir)"
+              >{{ storageDir }}</code>
+              <button
+                class="mm-open-btn"
+                title="在文件管理器中打开"
+                @click="openStorageInExplorer"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6Z" />
+                  <path d="M2 12h20" />
+                </svg>
+              </button>
+            </template>
+            <code v-else class="mm-path mm-path--note">{{ storageNote }}</code>
           </div>
         </div>
 
@@ -451,6 +459,32 @@ function refresh() {
 .mm-path--note:hover {
   border-color: var(--border-light, #eee);
   color: var(--text-secondary, #888);
+}
+
+.mm-open-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light, #eee);
+  background: var(--bg-primary, #fff);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mm-open-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mm-open-btn:hover {
+  border-color: var(--accent-primary, #07c160);
+  color: var(--accent-primary, #07c160);
+  background: var(--bg-primary, #fff);
 }
 
 .mm-btn--danger {

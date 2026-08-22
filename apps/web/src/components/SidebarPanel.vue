@@ -212,9 +212,11 @@ function setSort(mode: 'recent' | 'name-asc') {
 }
 
 .fs-header {
-  display: block;
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
-  padding: 8px 12px;
+  height: 52px;
+  padding: 0 12px;
   border-bottom: 1px solid var(--border-light);
   user-select: none;
 }

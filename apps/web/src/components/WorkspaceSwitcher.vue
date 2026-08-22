@@ -68,10 +68,33 @@ onUnmounted(() => {
     <!-- 触发条 -->
     <button class="ws-trigger" :class="{ active: open }" @click="toggle">
       <span class="ws-avatar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          v-if="current.kind === 'virtual'"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <ellipse cx="12" cy="5" rx="9" ry="3" />
           <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
           <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+        </svg>
+        <svg
+          v-else
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
       </span>
       <span class="ws-meta">
