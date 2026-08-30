@@ -53,6 +53,8 @@ watch(isDark, (value) => {
   } else {
     document.documentElement.removeAttribute('data-ui-theme')
   }
+  // 同步到编辑器 store，使预览在深色模式下对主题 CSS 做反向转换，文字可见
+  editor.setDark(value)
 }, { immediate: true })
 
 // 预计算图片内联后的微信 HTML，避免复制时异步操作导致 user gesture 过期
