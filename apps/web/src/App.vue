@@ -349,6 +349,7 @@ const isSaved = computed(() => !editor.isModified)
       @copy-html="copyHtml"
       @reveal-in-finder="onRevealInFinder"
       @open-workspace-folder="onOpenWorkspaceFolder"
+      @open-theme="openTheme"
     />
 
     <ThemeSelector
