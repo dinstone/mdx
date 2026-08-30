@@ -28,6 +28,7 @@ const emit = defineEmits<{
   copyHtml: []
   revealInFinder: []
   openWorkspaceFolder: []
+  openTheme: []
 }>()
 
 const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
@@ -223,8 +224,6 @@ function onContentBodyClick(e: MouseEvent) {
       :view-mode="viewMode"
       :is-external="isExternal"
       @set-view-mode="emit('setViewMode', $event)"
-      @copy-wechat="onCopyWechat"
-      @copy-html="emit('copyHtml')"
       @reveal-in-finder="emit('revealInFinder')"
       @toggle-toc="onToggleToc"
     />
@@ -255,7 +254,7 @@ function onContentBodyClick(e: MouseEvent) {
       ></div>
 
       <div v-show="viewMode !== 'editor'" class="pane pane-preview">
-        <PreviewPanel ref="previewRef" :html="renderedHtml" @scroll-sync="onPreviewScroll" />
+        <PreviewPanel ref="previewRef" :html="renderedHtml" @scroll-sync="onPreviewScroll" @copy-wechat="onCopyWechat" @copy-html="emit('copyHtml')" @open-theme="emit('openTheme')" />
       </div>
 
       <PreviewToc

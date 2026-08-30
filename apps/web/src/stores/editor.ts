@@ -8,7 +8,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
-import { createMarkdownParser, processHtml } from '@mdx/core'
+import { createMarkdownParser, processHtml, convertCssToWeChatDarkMode } from '@mdx/core'
 import { withKatexStyle } from '../utils/katexStyle'
 import { getBridge, getBrowserBridge, getDesktopBridge, type IServiceBridge, type ReadResult, type FrontmatterMeta } from '../bridge'
 import { useWorkspaceStore } from './workspace'
@@ -16,6 +16,16 @@ import { useThemeStore } from './themes'
 import { isPathInsideWorkspace, basename } from './workspace-types'
 
 const parser = createMarkdownParser()
+
+/**
+ * 全局深色模式（UI 主题）。预览在深色模式下需要对主题 CSS 做「微信深色模式」反向
+ * 转换（明暗反转），否则浅色主题的深色文字会落在深色预览背景上而看不见。
+ * 由 App.vue 的 isDark 同步进来；仅作用于预览（renderedHtml），不改变复制/导出行为。
+ */
+const isDark = ref(false)
+function setDark(v: boolean) {
+  isDark.value = v
+}
 
 /** 自动保存轮询间隔：每 3 秒检查一次 dirty 状态并写盘。 */
 const AUTO_SAVE_INTERVAL_MS = 3000
@@ -131,7 +141,9 @@ export const useEditorStore = defineStore('editor', () => {
   const renderedHtml = computed(() => {
     if (!rawContent.value) return ''
     const mdHtml = parser.render(rawContent.value)
-    return processHtml(mdHtml, theme.currentCSS)
+    // 深色模式：对主题 CSS 做微信深色模式反向转换，保证文字在深色预览背景上可见
+    const css = isDark.value ? convertCssToWeChatDarkMode(theme.currentCSS) : theme.currentCSS
+    return processHtml(mdHtml, css)
   })
 
   /** Renders raw markdown → WeChat-compatible HTML with pseudo-elements inlined. */
@@ -332,6 +344,7 @@ export const useEditorStore = defineStore('editor', () => {
     isModified,
     loading,
     error,
+    isDark,
     // getters
     isEmpty,
     fileName,
@@ -348,5 +361,6 @@ export const useEditorStore = defineStore('editor', () => {
     reset,
     startAutoSave,
     stopAutoSave,
+    setDark,
   }
 })

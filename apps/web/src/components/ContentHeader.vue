@@ -8,8 +8,6 @@ defineProps<{
 
 const emit = defineEmits<{
   setViewMode: [mode: 'split' | 'editor' | 'preview']
-  copyWechat: []
-  copyHtml: []
   revealInFinder: []
   toggleToc: []
 }>()
@@ -65,22 +63,6 @@ const emit = defineEmits<{
           </svg>
         </button>
       </div>
-
-      <button class="btn-secondary" @click="emit('copyHtml')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-        <span>复制 HTML</span>
-      </button>
-
-      <button class="btn-primary" @click="emit('copyWechat')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13" />
-          <polygon points="22 2 15 22 11 13 2 9 22 2" />
-        </svg>
-        <span>复制到公众号</span>
-      </button>
     </div>
   </header>
 </template>
@@ -206,64 +188,5 @@ const emit = defineEmits<{
   background: var(--bg-primary);
   color: var(--accent-primary, #07c160);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  background: var(--accent-gradient) !important;
-  color: #ffffff !important;
-  border: none;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: var(--shadow-md);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lg);
-}
-
-.btn-secondary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: var(--border-width) solid var(--border-light);
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-color);
-}
-
-.btn-secondary svg,
-.btn-primary svg {
-  width: 18px;
-  height: 18px;
-}
-
-@media (max-width: 1100px) {
-  .btn-secondary span,
-  .btn-primary span {
-    display: none;
-  }
-  .btn-secondary,
-  .btn-primary {
-    padding: 9px 12px;
-  }
 }
 </style>

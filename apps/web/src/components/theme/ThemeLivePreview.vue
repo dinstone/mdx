@@ -3,7 +3,7 @@
  * 主题实时预览 — iframe 沙箱隔离渲染
  */
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { createMarkdownParser, processHtml } from '@mdx/core'
+import { createMarkdownParser, processHtml, convertCssToWeChatDarkMode } from '@mdx/core'
 import { getImageStorage } from '../../services/imageStorage'
 import { katexCssLocalFonts } from '../../utils/katexStyle'
 import previewMarkdown from '../../assets/preview.md?raw'
@@ -125,7 +125,9 @@ async function updateIframe() {
   if (!themeStyle || !root) return
 
   const gen = ++renderGeneration
-  themeStyle.textContent = props.css
+  // 深色模式下对主题 CSS 做明暗反转，否则主题里的深色文字落在深色预览背景上不可见
+  const effectiveCss = props.isDark ? convertCssToWeChatDarkMode(props.css) : props.css
+  themeStyle.textContent = effectiveCss
 
   // iframe 沙箱不继承父页面全局 CSS，需独立注入 KaTeX 样式（字体走同源本地打包，
   // 避免依赖外网 CDN —— 无网络或 WebView 拦截跨域字体时公式会渲染失败）
@@ -142,7 +144,7 @@ async function updateIframe() {
   // font-family 并被内联成 inline 样式（优先级高于 <head> 里的 .katex 类规则），
   // 导致公式字体被覆盖、渲染错乱。并入 KaTeX CSS 后，数学字体也会以 inline 形式
   // 内联（类更具体、排在主题之后而胜出）；<head> 的 katex-style 仍提供 @font-face。
-  const html = processHtml(mdHtml, `${props.css}\n${katexCssLocalFonts}`, true)
+  const html = processHtml(mdHtml, `${effectiveCss}\n${katexCssLocalFonts}`, true)
   const resolvedHtml = await resolveImageUrls(html)
 
   // 如果期间触发了新渲染，丢弃旧结果，避免旧 blob URL 覆盖新内容

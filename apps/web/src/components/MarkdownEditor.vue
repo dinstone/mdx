@@ -2,7 +2,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { minimalSetup } from 'codemirror'
 import { EditorState, Compartment } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { customKeymap } from './editorShortcuts'
@@ -271,6 +271,8 @@ onMounted(() => {
     doc: props.modelValue,
     extensions: [
       minimalSetup,
+      lineNumbers(),
+      highlightActiveLineGutter(),
       customKeymap,
       saveKeymap,
       markdown({ codeLanguages: languages }),
@@ -302,10 +304,17 @@ onMounted(() => {
           background: 'transparent',
           border: 'none',
           color: 'var(--text-tertiary)',
-          paddingRight: '8px',
+          paddingRight: '4px',
+        },
+        '.cm-lineNumbers .cm-gutterElement': {
+          padding: '0 8px 0 12px',
+          minWidth: '40px',
+          textAlign: 'right',
+          color: 'var(--text-tertiary)',
         },
         '.cm-activeLineGutter': {
-          background: 'transparent',
+          background: 'var(--ui-active-line-bg)',
+          color: 'var(--text-secondary)',
         },
         '.cm-activeLine': {
           background: 'var(--ui-active-line-bg)',
