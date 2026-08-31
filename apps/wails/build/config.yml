@@ -8,10 +8,10 @@ info:
   companyName: "dinstone ltd" # The name of the company
   productName: "MDX" # The name of the application
   productIdentifier: "com.dinstone.mdx" # The unique product identifier
-  description: "A Markdown editor built with Wails 3" # The application description
+  description: "Markdown Editor X" # The application description
   copyright: "(c) 2025, dinstone ltd" # Copyright text
-  comments: "MDXor Markdown Editor" # Comments
-  version: "1.3.0" # The application version
+  comments: "MDX Markdown Editor" # Comments
+  version: "1.4.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"
