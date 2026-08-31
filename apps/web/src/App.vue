@@ -9,6 +9,7 @@ import { useThemeStore } from './stores/themes'
 import SystemRail from './components/SystemRail.vue'
 import SidebarPanel from './components/SidebarPanel.vue'
 import ContentArea from './components/ContentArea.vue'
+import AppTitleBar from './components/AppTitleBar.vue'
 import MovePicker from './components/MovePicker.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
@@ -19,6 +20,10 @@ import { useToast } from './composables/useToast'
 import ToastMessage from './components/ToastMessage.vue'
 
 const isDesktop = computed(() => getBridge().isDesktop)
+// Custom title bar is only needed where the window is frameless — i.e. the
+// Windows desktop build (main.go sets Frameless on windows). macOS keeps its
+// native hidden-inset title bar; the web build uses the browser chrome.
+const isWindows = computed(() => isDesktop && platformInfo.value.os === 'windows')
 const workspace = useWorkspaceStore()
 const editor = useEditorStore()
 const themeStore = useThemeStore()
@@ -299,94 +304,107 @@ const isSaved = computed(() => !editor.isModified)
 </script>
 
 <template>
-  <div class="three-pane" :class="{ 'ws-collapsed': !workspaceOpen }">
-    <SystemRail
-      :is-dark="isDark"
-      :workspace-open="workspaceOpen"
-      @toggle-workspace="workspaceOpen = !workspaceOpen"
-      @open-theme="openTheme"
-      @open-image-host="openImageHost"
-      @toggle-dark="toggleDark"
-      @open-settings="onOpenSettings"
-    />
+  <div class="app-root">
+    <AppTitleBar v-if="isWindows" />
 
-    <div class="workspace-rail">
-      <SidebarPanel
-        :title="workspace.title || 'Workspace'"
+    <div class="three-pane" :class="{ 'ws-collapsed': !workspaceOpen }">
+      <SystemRail
+        :is-dark="isDark"
+        :workspace-open="workspaceOpen"
+        @toggle-workspace="workspaceOpen = !workspaceOpen"
+        @open-theme="openTheme"
+        @open-image-host="openImageHost"
+        @toggle-dark="toggleDark"
+        @open-settings="onOpenSettings"
+      />
+
+      <div class="workspace-rail">
+        <SidebarPanel
+          :title="workspace.title || 'Workspace'"
+          :root-path="workspace.rootPath"
+          :entries="workspace.entries"
+          :active-path="workspace.activeFileId"
+          :workspace-open="workspace.isOpen"
+          :current-workspace="workspace.current ?? undefined"
+          :recent-workspaces="workspacePickerList"
+          :is-desktop="isDesktop"
+          @select="workspace.setActiveFile"
+          @refresh="workspace.refresh()"
+          @create-file="createFile"
+          @create-folder="createFolder"
+          @select-workspace-ws="onSelectWorkspace"
+          @open-workspace-folder="onOpenWorkspaceFolder"
+          @remove-workspace="onRemoveWorkspace"
+          @rename="onRenamePicker"
+          @delete="deleteEntry"
+          @move-picker="onMovePicker"
+          @copy-title="copyTitle"
+          @expand-dir="workspace.expandDirectory($event)"
+        />
+      </div>
+
+      <ContentArea
+        v-model="editorContent"
+        :file-name="editor.fileName"
+        :saved="isSaved"
+        :is-external="editor.isExternal"
+        :external-file-path="editor.filePath"
+        :rendered-html="editor.renderedHtml"
+        :is-dark="isDark"
+        :view-mode="viewMode"
+        :has-active-file="workspace.hasActiveFile"
+        @save="editor.saveFile()"
+        @set-view-mode="viewMode = $event"
+        @copy-wechat="copyWechat"
+        @copy-html="copyHtml"
+        @reveal-in-finder="onRevealInFinder"
+        @open-workspace-folder="onOpenWorkspaceFolder"
+        @open-theme="openTheme"
+      />
+
+      <ThemeSelector
+        :open="showThemePanel"
+        :current-id="themeStore.currentThemeId"
+        :is-dark="isDark"
+        @select="selectTheme"
+        @close="closeTheme"
+      />
+      <MovePicker
+        v-if="showMovePicker"
+        :source-path="moveSourcePath"
         :root-path="workspace.rootPath"
         :entries="workspace.entries"
-        :active-path="workspace.activeFileId"
-        :workspace-open="workspace.isOpen"
-        :current-workspace="workspace.current ?? undefined"
-        :recent-workspaces="workspacePickerList"
-        :is-desktop="isDesktop"
-        @select="workspace.setActiveFile"
-        @refresh="workspace.refresh()"
-        @create-file="createFile"
-        @create-folder="createFolder"
-        @select-workspace-ws="onSelectWorkspace"
-        @open-workspace-folder="onOpenWorkspaceFolder"
-        @remove-workspace="onRemoveWorkspace"
-        @rename="onRenamePicker"
-        @delete="deleteEntry"
-        @move-picker="onMovePicker"
-        @copy-title="copyTitle"
-        @expand-dir="workspace.expandDirectory($event)"
+        @close="showMovePicker = false"
+        @select="confirmMove"
       />
+      <RenameDialog
+        :open="showRenameDialog"
+        :name="renameName"
+        :is-file="renameIsFile"
+        @close="showRenameDialog = false"
+        @confirm="confirmRename"
+      />
+      <MediaManager
+        v-if="showMediaManager"
+        @close="showMediaManager = false"
+      />
+      <ToastMessage />
     </div>
-
-    <ContentArea
-      v-model="editorContent"
-      :file-name="editor.fileName"
-      :saved="isSaved"
-      :is-external="editor.isExternal"
-      :external-file-path="editor.filePath"
-      :rendered-html="editor.renderedHtml"
-      :is-dark="isDark"
-      :view-mode="viewMode"
-      :has-active-file="workspace.hasActiveFile"
-      @save="editor.saveFile()"
-      @set-view-mode="viewMode = $event"
-      @copy-wechat="copyWechat"
-      @copy-html="copyHtml"
-      @reveal-in-finder="onRevealInFinder"
-      @open-workspace-folder="onOpenWorkspaceFolder"
-      @open-theme="openTheme"
-    />
-
-    <ThemeSelector
-      :open="showThemePanel"
-      :current-id="themeStore.currentThemeId"
-      :is-dark="isDark"
-      @select="selectTheme"
-      @close="closeTheme"
-    />
-    <MovePicker
-      v-if="showMovePicker"
-      :source-path="moveSourcePath"
-      :root-path="workspace.rootPath"
-      :entries="workspace.entries"
-      @close="showMovePicker = false"
-      @select="confirmMove"
-    />
-    <RenameDialog
-      :open="showRenameDialog"
-      :name="renameName"
-      :is-file="renameIsFile"
-      @close="showRenameDialog = false"
-      @confirm="confirmRename"
-    />
-    <MediaManager
-      v-if="showMediaManager"
-      @close="showMediaManager = false"
-    />
-    <ToastMessage />
   </div>
 </template>
 
 <style>
-.three-pane {
+.app-root {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+.three-pane {
+  flex: 1;
+  min-height: 0;
   display: flex;
   gap: 10px;
   padding: 10px;

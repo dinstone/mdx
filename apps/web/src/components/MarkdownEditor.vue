@@ -4,7 +4,7 @@ import { minimalSetup } from 'codemirror'
 import { EditorState, Compartment } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
-import { languages } from '@codemirror/language-data'
+import { codeLanguages } from '../editor/codeLanguages'
 import { customKeymap } from './editorShortcuts'
 import { imageDropPaste } from '../editor/imageDropPaste'
 import { processImages } from '../services/imagePipeline'
@@ -275,7 +275,7 @@ onMounted(() => {
       highlightActiveLineGutter(),
       customKeymap,
       saveKeymap,
-      markdown({ codeLanguages: languages }),
+      markdown({ codeLanguages }),
       highlightCompartment.of(props.isDark ? markdownDarkHighlighting : markdownLightHighlighting),
       imageDropPaste(),
       EditorView.lineWrapping,

@@ -51,9 +51,34 @@ const store = useWorkspaceStore();
 //           but the page is served from embedded assets over a non-http
 //           protocol (wails://), which is a reliable desktop indicator.
 const isDesktop = window.__WAILS_MODE__ ||
+  !!window._wails ||
   !location.protocol.startsWith('http')
 
 if (isDesktop) {
+  bootstrapDesktop()
+} else {
+  // ---- Browser mode ----
+  // Open immediately with BrowserBridge (IndexedDB).
+  store.open().catch((e) => console.error('[browser] store.open failed:', e))
+}
+
+/**
+ * Desktop bootstrap.
+ *
+ * Wraps initDesktop() in a runtime-ready wait so a late-arriving Wails runtime
+ * (or a transient race) does NOT silently drop the app into browser-fallback
+ * mode — which would lose the native folder picker (only a temp/IndexedDB
+ * workspace could be added) and file-association handling.  If the desktop
+ * bridge genuinely can't load, we surface the error visibly instead of
+ * swallowing it.
+ */
+async function bootstrapDesktop() {
+  try {
+    await waitForWailsRuntime()
+  } catch (e) {
+    console.warn('[init] Wails runtime not ready in time, proceeding anyway:', e)
+  }
+
   // ---- Desktop mode ----
   // Load the desktop bridge and Wails runtime together in a single dynamic
   // chunk. The runtime has internal circular imports that Vite/Rolldown can
@@ -223,10 +248,52 @@ if (isDesktop) {
   })
   .catch((e: unknown) => {
     console.error("[init] failed to load desktop bridge, falling back to browser:", e);
+    // Surface a visible error so a genuine desktop-bridge failure is
+    // diagnosable (instead of silently showing the web-only "enter name"
+    // prompt with no folder picker).  This is the exact symptom reported for
+    // the "只能添加临时类型的工作空间" Windows issue.
+    try {
+      useToast().error(
+        "桌面端桥接加载失败：本地文件夹工作空间不可用，仅临时空间可用。请打开控制台查看日志。",
+        6000,
+      );
+    } catch {
+      /* toast unavailable — console.error above already captured it */
+    }
     store.open().catch((err) => console.error("[browser fallback] store.open failed:", err));
   });
-} else {
-  // ---- Browser mode ----
-  // Open immediately with BrowserBridge (IndexedDB).
-  store.open().catch((e) => console.error("[browser] store.open failed:", e));
+}
+
+/**
+ * Wait until the Wails runtime (window._wails) is available.
+ *
+ * In a real desktop build the runtime is injected by the Go host before the
+ * page loads, so this resolves essentially immediately. We still poll (rather
+ * than assume) because in some builds the runtime script is loaded
+ * asynchronously and may arrive a tick after the Vue app boots — racing that
+ * used to cause initDesktop() to throw and silently drop the app into
+ * browser-fallback mode (which only offered a temp/IndexedDB workspace, never
+ * a real folder picker). If the runtime never arrives (e.g. someone opens the
+ * built frontend in a plain browser) we time out and let the caller decide,
+ * instead of hanging forever.
+ *
+ * Resolves when window._wails exists; rejects after timeoutMs.
+ */
+function waitForWailsRuntime(timeoutMs = 3000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window._wails) {
+      resolve();
+      return;
+    }
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      if (window._wails) {
+        window.clearInterval(timer);
+        resolve();
+      } else if (Date.now() - start >= timeoutMs) {
+        window.clearInterval(timer);
+        reject(new Error(`Wails runtime not ready after ${timeoutMs}ms`));
+      }
+    }, 50);
+  });
 }
