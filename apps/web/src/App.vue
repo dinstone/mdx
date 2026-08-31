@@ -102,7 +102,12 @@ async function pickDesktopFolder() {
     const state = await getBridge().pickFolder()
     workspace.applyState(state)
   } catch (e) {
+    // Surface the real failure instead of failing silently — on desktop this
+    // points at the native folder-picker (Go) call; in browser mode it signals
+    // the desktop bridge never initialised.
     console.error('Open folder failed', e)
+    const msg = e instanceof Error ? e.message : String(e)
+    toast.error(`打开文件夹失败：${msg}`, 5000)
   }
 }
 

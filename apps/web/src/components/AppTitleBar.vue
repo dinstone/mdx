@@ -5,39 +5,57 @@ import { ref, onMounted, onUnmounted } from 'vue'
  * Custom title bar — only rendered on the Windows desktop build.
  *
  * The Wails window is created `Frameless` on Windows (main.go), so the native
- * title bar / border is gone.  Window dragging and the min/max/close buttons are
- * wired through Wails 3's non-client region support:
+ * title bar / border is gone.  Two independent mechanisms are used:
  *
- *   --wails-non-client-region: caption   → drag the window (HTCAPTION)
- *   --wails-non-client-region: minimize   → native minimise
- *   --wails-non-client-region: maximize   → native maximise / restore
- *   --wails-non-client-region: close      → native close
+ *   1. Dragging — the whole header is marked `app-region: drag`.  This is
+ *      honoured natively by WebView2 because main.go sets
+ *      `Windows.NonClientRegionSupport = true` (which enables the
+ *      `GetNonClientRegionAtPoint` hit-test path).  No JS drag handler needed.
  *
- * The runtime (appregion.ts) scans for these CSS variables and forwards the
- * rectangles to the native side, which performs the real hit-testing.  So the
- * buttons need NO click handlers — Windows does it.  We only keep a resize
- * listener to flip the maximise/restore glyph.
+ *   2. Min / Max / Close buttons — driven by explicit JS calls into the Wails
+ *      `Window` API (`@wailsio/runtime`).  This does NOT depend on the native
+ *      non-client region machinery, so the buttons work even if the draggable
+ *      region hit-testing is unavailable.  The buttons opt out of the drag
+ *      region via `app-region: no-drag` so their DOM clicks are not swallowed.
  *
- * NOTE: `@wailsio/runtime` is only imported on demand (and this component is only
- * mounted on Windows desktop), so the web build never pulls in the runtime.
+ * NOTE: `@wailsio/runtime` is only imported on demand (and this component is
+ * only mounted on Windows desktop), so the web build never pulls it in.
  */
 
 const isMax = ref(false)
 let wailsWindow: any = null
 
-async function ensureWindow() {
+async function getWindow(): Promise<any> {
   if (wailsWindow) return wailsWindow
   try {
-    const mod = await import('@wailsio/runtime')
-    wailsWindow = (mod as any).Window ?? (mod as any).default
+    const mod: any = await import('@wailsio/runtime')
+    wailsWindow = mod.Window ?? mod.default ?? null
   } catch {
     wailsWindow = null
   }
   return wailsWindow
 }
 
+async function minimize() {
+  const w = await getWindow()
+  if (w) await w.Minimise()
+}
+
+async function toggleMax() {
+  const w = await getWindow()
+  if (!w) return
+  if (await w.IsMaximised()) await w.UnMaximise()
+  else await w.Maximise()
+  syncMaxState()
+}
+
+async function closeWindow() {
+  const w = await getWindow()
+  if (w) await w.Close()
+}
+
 async function syncMaxState() {
-  const w = await ensureWindow()
+  const w = await getWindow()
   if (!w) return
   try {
     isMax.value = !!(await w.IsMaximised())
@@ -61,14 +79,14 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
     </div>
 
     <div class="atb-controls">
-      <button class="atb-btn" title="最小化" aria-label="最小化">
+      <button class="atb-btn" title="最小化" aria-label="最小化" @click="minimize">
         <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
       </button>
-      <button class="atb-btn" :title="isMax ? '向下还原' : '最大化'" :aria-label="isMax ? '向下还原' : '最大化'">
+      <button class="atb-btn" :title="isMax ? '向下还原' : '最大化'" :aria-label="isMax ? '向下还原' : '最大化'" @click="toggleMax">
         <svg v-if="!isMax" width="12" height="12" viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.2" /></svg>
         <svg v-else width="12" height="12" viewBox="0 0 12 12"><rect x="2.5" y="3.5" width="7" height="6" fill="none" stroke="currentColor" stroke-width="1.2" /><rect x="4" y="2" width="6" height="5" fill="var(--bg-primary)" stroke="currentColor" stroke-width="1.2" /></svg>
       </button>
-      <button class="atb-btn atb-btn--close" title="关闭" aria-label="关闭">
+      <button class="atb-btn atb-btn--close" title="关闭" aria-label="关闭" @click="closeWindow">
         <svg width="12" height="12" viewBox="0 0 12 12"><line x1="3" y1="3" x2="9" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /><line x1="9" y1="3" x2="3" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
       </button>
     </div>
@@ -77,8 +95,10 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
 
 <style scoped>
 .app-titlebar {
-  /* drag region — Wails routes this to HTCAPTION on Windows */
-  --wails-non-client-region: caption;
+  /* Drag region — WebView2 honours `app-region: drag` natively because
+     main.go sets Windows.NonClientRegionSupport = true. */
+  -webkit-app-region: drag;
+  app-region: drag;
   flex: 0 0 34px;
   height: 34px;
   display: flex;
@@ -95,7 +115,7 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
   align-items: center;
   gap: 8px;
   min-width: 0;
-  pointer-events: none;
+  /* inherits the parent drag region (no no-drag here) */
 }
 
 .atb-logo {
@@ -113,6 +133,9 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
 }
 
 .atb-controls {
+  /* Opt out of the drag region so button clicks are delivered normally. */
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -131,18 +154,6 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-/* Native non-client regions — Windows handles the click, no JS needed. */
-.atb-controls > .atb-btn:nth-child(1) {
-  --wails-non-client-region: minimize;
-}
-.atb-controls > .atb-btn:nth-child(2) {
-  --wails-non-client-region: maximize;
-}
-.atb-controls > .atb-btn:nth-child(3) {
-  --wails-non-client-region: close;
-}
-
-/* Hover feedback is applied by Windows via forwarded mouse input. */
 .atb-btn:hover {
   background: var(--bg-hover, rgba(0, 0, 0, 0.06));
   color: var(--text-primary, #111);
