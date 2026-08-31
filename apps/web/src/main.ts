@@ -42,24 +42,32 @@ app.mount("#app");
 
 const store = useWorkspaceStore();
 
-// ---- Browser mode ----
-// Open the most recent workspace (or create a temp one) using IndexedDB.
-// Desktop mode does its own initialisation inside the Wails runtime block.
-// Desktop mode detection:
-//   - Dev:  WAILS_VITE_PORT is set → vite injects __WAILS_MODE__=true
-//   - Prod: WAILS_VITE_PORT is NOT set → vite injects __WAILS_MODE__=false,
-//           but the page is served from embedded assets over a non-http
-//           protocol (wails://), which is a reliable desktop indicator.
-const isDesktop = window.__WAILS_MODE__ ||
-  !!window._wails ||
-  !location.protocol.startsWith('http')
+// ---- Bootstrap ----
+// Decide between desktop and browser mode. The Wails runtime (window._wails)
+// is injected by the Go host and may NOT exist yet at the moment this module
+// evaluates — it can arrive a tick later, and some production builds serve the
+// page over http(s) (where __WAILS_MODE__ is also false). A one-shot
+// synchronous check here used to wrongly drop us into browser mode on those
+// builds, silently disabling the native folder picker (the "只能添加临时工作空间"
+// Windows issue). So:
+//   * If we're unambiguously desktop (__WAILS_MODE__ set, or a non-http
+//     protocol such as wails://), bootstrap desktop immediately.
+//   * Otherwise (http(s) without an explicit wails signal) probe briefly for the
+//     runtime. If it shows up, go desktop; if not, fall back to the browser
+//     bridge. This keeps pure-web deployments snappy while still catching desktop
+//     builds whose runtime is injected asynchronously.
+const unambiguouslyDesktop =
+  window.__WAILS_MODE__ || !location.protocol.startsWith('http')
 
-if (isDesktop) {
+if (unambiguouslyDesktop) {
   bootstrapDesktop()
 } else {
-  // ---- Browser mode ----
-  // Open immediately with BrowserBridge (IndexedDB).
-  store.open().catch((e) => console.error('[browser] store.open failed:', e))
+  waitForWailsRuntime(2500)
+    .then(() => bootstrapDesktop())
+    .catch(() => {
+      // No Wails runtime appeared → pure browser deployment.
+      store.open().catch((e) => console.error('[browser] store.open failed:', e))
+    })
 }
 
 /**
