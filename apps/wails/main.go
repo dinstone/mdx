@@ -3,7 +3,9 @@ package main
 import (
 	"embed"
 	"log"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -13,6 +15,10 @@ import (
 	"mdx/internal/service"
 	"mdx/internal/util"
 )
+
+// mdExts are the file extensions we claim via FileAssociations.  Used to pick
+// the document argument out of a second-instance launch (see below).
+var mdExts = map[string]bool{".md": true, ".markdown": true}
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -32,6 +38,40 @@ func main() {
 		Name:             "MDX",
 		Description:      "A Markdown tools(editor, preview, publish) built with Wails 3 + Vue 3",
 		FileAssociations: []string{".md", ".markdown"},
+		// --- Single instance (Windows file-association + relaunch) ---
+		// On Windows, double-clicking an .md launches a NEW process with the
+		// file path as an argument.  Without a single-instance lock that second
+		// process would spawn its own window and the document would not open in
+		// the already-running instance.  The lock routes the argument back here
+		// via OnSecondInstanceLaunch, so we can open it in the live window.
+		// (macOS handles this natively through ApplicationOpenedWithFile.)
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.dinstone.mdx",
+			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+				// data.Args[0] is the executable path on Windows; scan for the
+				// first .md/.markdown argument and open it in the live instance.
+				var fileArg string
+				for _, a := range data.Args {
+					if mdExts[strings.ToLower(filepath.Ext(a))] {
+						fileArg = a
+						break
+					}
+				}
+				if fileArg != "" {
+					log.Printf("[single-instance] file arg: %s (frontendReady=%v)", fileArg, service.IsFrontendReady())
+					if service.IsFrontendReady() {
+						application.Get().Event.Emit("file:opened", fileArg)
+					} else {
+						service.QueueOpenFile(fileArg)
+					}
+				}
+				// Raise the existing window (e.g. relaunch from Start Menu, or a
+				// double-click while the app is already open).
+				if w := application.Get().Window.Current(); w != nil {
+					w.Show()
+				}
+			},
+		},
 		Services: []application.Service{
 			application.NewService(&service.FileService{}),
 			application.NewService(&service.FolderService{}),
@@ -113,10 +153,19 @@ func main() {
 		Title:  "MDX",
 		Width:  1200,
 		Height: 800,
+		// Windows: drop the native title bar / border (the "ugly window frame").
+		// beta.4 keeps WS_THICKFRAME under Frameless, so edges Stay resizable.
+		// The frontend renders a custom draggable title bar (AppTitleBar.vue)
+		// with min/max/close buttons. macOS keeps its hidden-inset title bar.
+		Frameless: runtime.GOOS == "windows",
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
+		},
+		Windows: application.WindowsWindow{
+			// Enables `app-region: drag` CSS so the custom title bar can be dragged.
+			NonClientRegionSupport: true,
 		},
 		BackgroundColour:   application.NewRGB(255, 255, 255),
 		URL:                "/",
