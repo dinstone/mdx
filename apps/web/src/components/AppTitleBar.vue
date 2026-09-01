@@ -7,16 +7,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
  * The Wails window is created `Frameless` on Windows (main.go), so the native
  * title bar / border is gone.  Two independent mechanisms are used:
  *
- *   1. Dragging — the whole header is marked `app-region: drag`.  This is
- *      honoured natively by WebView2 because main.go sets
- *      `Windows.NonClientRegionSupport = true` (which enables the
- *      `GetNonClientRegionAtPoint` hit-test path).  No JS drag handler needed.
+ *   1. Dragging — the header carries `--wails-draggable: drag` (the Wails-
+ *      managed, JS-tracked mechanism that EVERY official template uses; it only
+ *      needs `Frameless: true`, no extra Go flag).  The `.atb-title` region
+ *      fills the bar and stays draggable; the buttons opt out via
+ *      `--wails-draggable: no-drag` so their DOM clicks are not swallowed.
  *
  *   2. Min / Max / Close buttons — driven by explicit JS calls into the Wails
- *      `Window` API (`@wailsio/runtime`).  This does NOT depend on the native
- *      non-client region machinery, so the buttons work even if the draggable
- *      region hit-testing is unavailable.  The buttons opt out of the drag
- *      region via `app-region: no-drag` so their DOM clicks are not swallowed.
+ *      `Window` API (`@wailsio/runtime`).  Independent of the drag machinery.
  *
  * NOTE: `@wailsio/runtime` is only imported on demand (and this component is
  * only mounted on Windows desktop), so the web build never pulls it in.
@@ -74,10 +72,8 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
 <template>
   <header class="app-titlebar">
     <div class="atb-title">
-      <img class="atb-logo" src="/logo.png" alt="MDX" />
       <span class="atb-name">MDX</span>
     </div>
-
     <div class="atb-controls">
       <button class="atb-btn" title="最小化" aria-label="最小化" @click="minimize">
         <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
@@ -95,10 +91,10 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
 
 <style scoped>
 .app-titlebar {
-  /* Drag region — WebView2 honours `app-region: drag` natively because
-     main.go sets Windows.NonClientRegionSupport = true. */
-  -webkit-app-region: drag;
-  app-region: drag;
+  /* Drag region — Wails-managed `--wails-draggable` (the default cross-platform
+     mechanism all official templates use; only needs Frameless:true, no special
+     Go flag). Buttons opt out via `--wails-draggable: no-drag` on `.atb-btn`. */
+  --wails-draggable: drag;
   flex: 0 0 34px;
   height: 34px;
   display: flex;
@@ -115,7 +111,8 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
   align-items: center;
   gap: 8px;
   min-width: 0;
-  /* inherits the parent drag region (no no-drag here) */
+  flex: 1 1 auto; /* fill the bar so the left/centre is the drag handle */
+  /* inherits `--wails-draggable: drag` from .app-titlebar */
 }
 
 .atb-logo {
@@ -133,15 +130,15 @@ onUnmounted(() => window.removeEventListener('resize', syncMaxState))
 }
 
 .atb-controls {
-  /* Opt out of the drag region so button clicks are delivered normally. */
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
+  /* Container stays draggable (inherits drag); only the buttons opt out. */
   display: flex;
   align-items: center;
   gap: 2px;
 }
 
 .atb-btn {
+  /* Buttons must NOT be a drag region, otherwise their clicks are swallowed. */
+  --wails-draggable: no-drag;
   width: 34px;
   height: 28px;
   border: none;
