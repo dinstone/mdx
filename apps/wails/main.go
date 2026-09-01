@@ -163,10 +163,6 @@ func main() {
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		Windows: application.WindowsWindow{
-			// Enables `app-region: drag` CSS so the custom title bar can be dragged.
-			NonClientRegionSupport: true,
-		},
 		BackgroundColour:   application.NewRGB(255, 255, 255),
 		URL:                "/",
 		UseApplicationMenu: true,
