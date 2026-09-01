@@ -47,19 +47,12 @@ export interface PlatformInfo {
   version: string
 }
 
-/** Result of an update availability check, mirrored from the Go UpdateService. */
-export interface CheckUpdateResult {
-  hasUpdate: boolean
-  version: string
-  name: string
-  notes: string
-  url: string
-  /** Non-empty when the check itself failed (network/parse). */
-  error?: string
-}
-
 // ---------------------------------------------------------------------------
 // Bridge contract — every platform adapter must satisfy this interface
+//
+// Scope: file / folder / workspace / system operations that exist in BOTH the
+// desktop and the browser build. Auto-update is desktop-only, so it lives in
+// its own module (`./update`) rather than being bolted onto this contract.
 // ---------------------------------------------------------------------------
 
 export interface IServiceBridge {
@@ -96,16 +89,6 @@ export interface IServiceBridge {
   getAppVersion(): Promise<string>
   openExternal(url: string): Promise<void>
   showItemInFolder(absPath: string): Promise<void>
-
-  // ---- Update ----
-  /** Starts a one-shot background update check (idempotent). */
-  startAutoUpdateCheck(): Promise<void>
-  /** Runs a full check + download + install of any available update. */
-  installUpdate(): Promise<void>
-  /** Returns the cached (or freshly checked) update availability result. */
-  getLastUpdate(): Promise<CheckUpdateResult | null>
-  /** Performs a fresh on-demand check and returns the result directly. */
-  checkUpdate(): Promise<CheckUpdateResult | null>
 
   // ---- Runtime detection ----
   /** Whether this bridge is backed by a native Wails backend. */

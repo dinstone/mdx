@@ -10,7 +10,6 @@ import type {
   FileEntry,
   WorkspaceState,
   PlatformInfo,
-  CheckUpdateResult,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -487,21 +486,5 @@ export class BrowserBridge implements IServiceBridge {
     return '' // Browser mode never has cold-launch file associations
   }
 
-  // -- Update (no-op in browser) -------------------------------------------
-
-  async startAutoUpdateCheck(): Promise<void> {
-    // Browser builds have no native updater; nothing to check.
-  }
-
-  async installUpdate(): Promise<void> {
-    // No-op in browser.
-  }
-
-  async getLastUpdate(): Promise<CheckUpdateResult | null> {
-    return null
-  }
-
-  async checkUpdate(): Promise<CheckUpdateResult | null> {
-    return null
-  }
+  // NOTE: no update stubs here — auto-update is desktop-only, see `./update`.
 }

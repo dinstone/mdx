@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getBridge } from '../bridge'
-import type { CheckUpdateResult } from '../bridge/types'
+// Auto-update is desktop-only and deliberately NOT part of IServiceBridge —
+// it lives in its own lazily-loaded module. Aliased because the local handlers
+// below are named checkUpdate()/installUpdate().
+import {
+  checkUpdate as fetchUpdateInfo,
+  installUpdate as runInstallUpdate,
+  isUpdateSupported,
+} from '../bridge/update'
+import type { CheckUpdateResult } from '../bridge/update'
 
 const props = defineProps<{
   currentVersion: string
@@ -13,7 +21,7 @@ const emit = defineEmits<{ close: [] }>()
 
 type Status = 'idle' | 'checking' | 'up-to-date' | 'available' | 'error' | 'installing'
 
-const isDesktop = getBridge().isDesktop
+const isDesktop = isUpdateSupported()
 const status = ref<Status>('idle')
 const result = ref<CheckUpdateResult | null>(null)
 const installError = ref('')
@@ -36,9 +44,10 @@ async function checkUpdate() {
   result.value = null
   installError.value = ''
   try {
-    const info = await getBridge().checkUpdate()
+    const info = await fetchUpdateInfo()
     if (!info) {
       status.value = 'error'
+      result.value = { hasUpdate: false, version: '', name: '', notes: '', url: '', error: '未获取到更新信息' }
       return
     }
     if (info.error) {
@@ -59,7 +68,7 @@ async function installUpdate() {
   status.value = 'installing'
   installError.value = ''
   try {
-    await getBridge().installUpdate()
+    await runInstallUpdate()
     // CheckAndInstall relaunches the app; if we reach here, install was cancelled/failed.
   } catch (e) {
     status.value = 'available'
