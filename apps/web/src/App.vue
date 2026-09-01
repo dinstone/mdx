@@ -291,10 +291,6 @@ const workspaceOpen = ref(false)
 type ViewMode = 'split' | 'editor' | 'preview'
 const viewMode = ref<ViewMode>('split')
 
-function onOpenSettings() {
-  // 设置：预留
-}
-
 async function onRevealInFinder() {
   const path = editor.filePath
   if (!path) return
@@ -320,7 +316,6 @@ const isSaved = computed(() => !editor.isModified)
         @open-theme="openTheme"
         @open-image-host="openImageHost"
         @toggle-dark="toggleDark"
-        @open-settings="onOpenSettings"
       />
 
       <div class="workspace-rail">
@@ -425,7 +420,7 @@ const isSaved = computed(() => !editor.isModified)
 .three-pane.ws-collapsed .workspace-rail {
   opacity: 0;
   overflow: hidden;
-  margin: 0 -10px;
+  margin: 0 -8px;
   pointer-events: none;
   transform: translateX(-8px);
 }

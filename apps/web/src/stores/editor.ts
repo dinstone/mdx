@@ -137,6 +137,26 @@ export const useEditorStore = defineStore('editor', () => {
   const fileName = computed(() => basename(filePath.value) || '未打开文档')
   const currentThemeName = computed(() => theme.currentTheme.name)
 
+  /**
+   * 状态栏展示的「文档主题」——只反映当前打开文档自身的主题设置（frontmatter），
+   * 而非全局选中的主题。规则：
+   *   - 未打开文档 → "默认主题"
+   *   - 文档已打开但 frontmatter 未设置 themeType/themeName → "默认主题"
+   *   - 已设置 → 解析成当前主题列表中的名称（自定义主题改名后可同步显示新名）
+   * 注意：文档没设置主题时，预览仍按全局选中主题渲染，但状态栏按需求显示「默认主题」。
+   */
+  const documentThemeName = computed(() => {
+    if (!filePath.value) return '默认主题'
+    const fields = parseFmFields(fmBlock.value)
+    const idOrName = (fields['themeType'] || fields['themeName'] || '').trim()
+    if (!idOrName) return '默认主题'
+    const matched =
+      theme.allThemes.find((t) => t.id === idOrName) ??
+      theme.allThemes.find((t) => t.name === idOrName)
+    // 主题已被删除时保留原始值，便于用户发现设置失效
+    return matched?.name || idOrName
+  })
+
   /** Renders raw markdown → themed HTML. */
   const renderedHtml = computed(() => {
     if (!rawContent.value) return ''
@@ -228,6 +248,11 @@ export const useEditorStore = defineStore('editor', () => {
       error.value = e instanceof Error ? e.message : 'Failed to load file'
       filePath.value = absPath
       rawContent.value = ''
+      // 读取失败时必须清空 frontmatter 与 meta，否则会残留上一个文档的
+      // 主题设置（状态栏显示错）并被自动保存误写到当前路径上。
+      fmBlock.value = ''
+      meta.value = { themeName: '默认主题' }
+      isModified.value = false
     } finally {
       loading.value = false
       // nextTick 后 CM 的 dispatch → updateContent 已完成，解除抑制
@@ -352,6 +377,7 @@ export const useEditorStore = defineStore('editor', () => {
     wechatHtml,
     exportHtml,
     currentThemeName,
+    documentThemeName,
     // actions
     loadFile,
     saveFile,

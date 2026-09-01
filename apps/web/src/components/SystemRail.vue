@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import SettingsMenu from './SettingsMenu.vue'
+
 defineProps<{
   isDark: boolean
   workspaceOpen: boolean
@@ -9,10 +12,22 @@ const emit = defineEmits<{
   openTheme: []
   openImageHost: []
   toggleDark: []
-  openSettings: []
 }>()
 
 const appVersion = __APP_VERSION__
+
+const showSettings = ref(false)
+const settingsAnchor = ref<DOMRect | null>(null)
+const settingsBtn = ref<HTMLButtonElement | null>(null)
+
+function toggleSettings() {
+  if (showSettings.value) {
+    showSettings.value = false
+    return
+  }
+  settingsAnchor.value = settingsBtn.value?.getBoundingClientRect() ?? null
+  showSettings.value = true
+}
 </script>
 
 <template>
@@ -66,14 +81,27 @@ const appVersion = __APP_VERSION__
         <span class="tip">{{ isDark ? '亮色模式' : '暗色模式' }}</span>
       </button>
 
-      <button class="sys-item" data-tip="设置（预留）" @click="emit('openSettings')">
+      <button
+        ref="settingsBtn"
+        class="sys-item"
+        :class="{ active: showSettings }"
+        data-tip="设置"
+        @click="toggleSettings"
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
-        <span class="tip">设置（预留）</span>
+        <span class="tip">设置</span>
       </button>
     </div>
+
+    <SettingsMenu
+      v-if="showSettings"
+      :current-version="appVersion"
+      :anchor-rect="settingsAnchor"
+      @close="showSettings = false"
+    />
   </aside>
 </template>
 
@@ -84,7 +112,7 @@ const appVersion = __APP_VERSION__
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 26px 0 14px;
+  padding: 20px 0 14px;
   gap: 6px;
 }
 
@@ -121,8 +149,8 @@ const appVersion = __APP_VERSION__
 .sys-item {
   position: relative;
   box-sizing: border-box;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 40px;
   border: none;
   background: transparent;
   border-radius: var(--radius-md);
