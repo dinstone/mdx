@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useThemeStore } from '../stores/themes'
+import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   saved?: boolean
@@ -18,8 +18,12 @@ const emit = defineEmits<{
   resetFont: []
 }>()
 
-const themeStore = useThemeStore()
-const themeName = computed(() => themeStore.currentTheme?.name || themeStore.currentThemeId)
+const editor = useEditorStore()
+/** 主题取自当前打开文档自身的设置；无文档 / 文档未设置 → “默认主题”。 */
+const themeName = computed(() => editor.documentThemeName)
+const themeTitle = computed(() =>
+  editor.filePath ? `当前文档主题：${themeName.value}` : '未打开文档',
+)
 </script>
 
 <template>
@@ -50,7 +54,7 @@ const themeName = computed(() => themeStore.currentTheme?.name || themeStore.cur
       <span class="sb-sep"></span>
       <span class="sb-item">自动换行</span>
       <span class="sb-sep"></span>
-      <span class="sb-item">主题：{{ themeName }}</span>
+      <span class="sb-item" :title="themeTitle">主题：{{ themeName }}</span>
     </div>
   </div>
 </template>
