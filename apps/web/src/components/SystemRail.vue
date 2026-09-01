@@ -112,7 +112,7 @@ function toggleSettings() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 26px 0 14px;
+  padding: 20px 0 14px;
   gap: 6px;
 }
 
@@ -149,8 +149,8 @@ function toggleSettings() {
 .sys-item {
   position: relative;
   box-sizing: border-box;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 40px;
   border: none;
   background: transparent;
   border-radius: var(--radius-md);

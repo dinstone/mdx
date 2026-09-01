@@ -420,7 +420,7 @@ const isSaved = computed(() => !editor.isModified)
 .three-pane.ws-collapsed .workspace-rail {
   opacity: 0;
   overflow: hidden;
-  margin: 0 -10px;
+  margin: 0 -8px;
   pointer-events: none;
   transform: translateX(-8px);
 }
