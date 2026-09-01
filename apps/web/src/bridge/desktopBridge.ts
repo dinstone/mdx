@@ -161,4 +161,10 @@ export class DesktopBridge implements IServiceBridge {
     const result = await UpdateService.GetLastUpdate()
     return (result ?? null) as CheckUpdateResult | null
   }
+
+  /** Performs a fresh on-demand check and returns the result directly. */
+  async checkUpdate(): Promise<CheckUpdateResult | null> {
+    const result = await UpdateService.CheckUpdate()
+    return (result ?? null) as CheckUpdateResult | null
+  }
 }

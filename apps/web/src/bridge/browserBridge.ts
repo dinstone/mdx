@@ -500,4 +500,8 @@ export class BrowserBridge implements IServiceBridge {
   async getLastUpdate(): Promise<CheckUpdateResult | null> {
     return null
   }
+
+  async checkUpdate(): Promise<CheckUpdateResult | null> {
+    return null
+  }
 }

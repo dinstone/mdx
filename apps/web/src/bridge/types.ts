@@ -54,6 +54,8 @@ export interface CheckUpdateResult {
   name: string
   notes: string
   url: string
+  /** Non-empty when the check itself failed (network/parse). */
+  error?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +104,8 @@ export interface IServiceBridge {
   installUpdate(): Promise<void>
   /** Returns the cached (or freshly checked) update availability result. */
   getLastUpdate(): Promise<CheckUpdateResult | null>
+  /** Performs a fresh on-demand check and returns the result directly. */
+  checkUpdate(): Promise<CheckUpdateResult | null>
 
   // ---- Runtime detection ----
   /** Whether this bridge is backed by a native Wails backend. */
