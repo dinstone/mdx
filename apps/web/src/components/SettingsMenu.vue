@@ -21,12 +21,16 @@ const emit = defineEmits<{ close: [] }>()
 
 type Status = 'idle' | 'checking' | 'up-to-date' | 'available' | 'error' | 'installing'
 
-const isDesktop = isUpdateSupported()
+// Evaluated lazily on every render: the Wails runtime (and therefore the
+// desktop bridge) is initialised asynchronously *after* app.mount(), so a
+// setup-time snapshot could be false forever if the user opens this menu
+// before bootstrap finishes.
+const isDesktop = computed(() => isUpdateSupported())
 const status = ref<Status>('idle')
 const result = ref<CheckUpdateResult | null>(null)
 const installError = ref('')
 
-const canCheck = computed(() => isDesktop && status.value !== 'checking' && status.value !== 'installing')
+const canCheck = computed(() => isDesktop.value && status.value !== 'checking' && status.value !== 'installing')
 
 const menuStyle = computed(() => {
   if (!props.anchorRect) return {}
