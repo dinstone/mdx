@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import SettingsMenu from './SettingsMenu.vue'
+import AboutSponsorDialog from './AboutSponsorDialog.vue'
 
 defineProps<{
   isDark: boolean
@@ -16,17 +16,10 @@ const emit = defineEmits<{
 
 const appVersion = __APP_VERSION__
 
-const showSettings = ref(false)
-const settingsAnchor = ref<DOMRect | null>(null)
-const settingsBtn = ref<HTMLButtonElement | null>(null)
+const showAbout = ref(false)
 
-function toggleSettings() {
-  if (showSettings.value) {
-    showSettings.value = false
-    return
-  }
-  settingsAnchor.value = settingsBtn.value?.getBoundingClientRect() ?? null
-  showSettings.value = true
+function toggleAbout() {
+  showAbout.value = !showAbout.value
 }
 </script>
 
@@ -82,25 +75,22 @@ function toggleSettings() {
       </button>
 
       <button
-        ref="settingsBtn"
-        class="sys-item"
-        :class="{ active: showSettings }"
-        data-tip="设置"
-        @click="toggleSettings"
+        class="sys-item sponsor"
+        :class="{ active: showAbout }"
+        data-tip="关于 / 赞助"
+        @click="toggleAbout"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
         </svg>
-        <span class="tip">设置</span>
+        <span class="tip">关于 / 赞助</span>
       </button>
     </div>
 
-    <SettingsMenu
-      v-if="showSettings"
+    <AboutSponsorDialog
+      v-if="showAbout"
       :current-version="appVersion"
-      :anchor-rect="settingsAnchor"
-      @close="showSettings = false"
+      @close="showAbout = false"
     />
   </aside>
 </template>
@@ -175,6 +165,17 @@ function toggleSettings() {
 .sys-item.active,
 .sys-item.active:hover {
   color: var(--accent-primary, #07c160);
+}
+
+/* 赞助入口：实心红底白心，经典「喜欢/赞助」语义色，醒目且与绿色导航项区分 */
+.sys-item.sponsor {
+  background: #e0404f;
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(224, 64, 79, 0.35);
+}
+.sys-item.sponsor:hover {
+  background: #c83342;
+  box-shadow: 0 0 0 1px rgba(224, 64, 79, 0.55);
 }
 
 .sys-bottom {

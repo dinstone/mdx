@@ -25,6 +25,7 @@ import {
   startAutoUpdateCheck,
 } from "./bridge/update";
 import type { CheckUpdateResult } from "./bridge/update";
+import { initUpdateProgressListeners } from "./stores/updateProgress";
 
 // Restore the UI theme before Vue renders to avoid a flash of the wrong mode.
 (function restoreTheme() {
@@ -100,6 +101,10 @@ async function bootstrapDesktop() {
   initDesktop()
     .then(async ({ Events }) => {
       console.log("[init] DesktopBridge ready, registering event listeners");
+
+      // 更新进度窗口事件（mdx:update:started / mdx:update:finished + wails 内置
+      // wails:updater:* 进度事件）——点击「立即更新」后独立进度窗口据此显示。
+      initUpdateProgressListeners(Events);
 
     // Wrap the cold-launch handling in a try so errors are visible.
     try {

@@ -49,6 +49,14 @@ func AppVersion() string {
 	return appVersion
 }
 
+// IsDevBuild reports whether this is a dev build (no -ldflags injected version,
+// init() coerced appVersion to "0.0.0"). Dev builds CAN check for updates —
+// 0.0.0 is lower than any release so the check always finds one, which makes
+// the whole update flow testable in dev — but InstallUpdate must not auto-
+// restart: the wails dev watcher does not adopt a helper-restarted process, so
+// a silent quit would look like a crash.
+func IsDevBuild() bool { return appVersion == "0.0.0" }
+
 // OpenExternal opens a URL in the default system browser.
 func (s *SystemService) OpenExternal(url string) error {
 	var cmd string

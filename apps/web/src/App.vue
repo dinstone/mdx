@@ -14,6 +14,7 @@ import MovePicker from './components/MovePicker.vue'
 import RenameDialog from './components/RenameDialog.vue'
 import ThemeSelector from './components/ThemeSelector.vue'
 import MediaManager from './components/MediaManager.vue'
+import UpdateProgressDialog from './components/UpdateProgressDialog.vue'
 import { copyToWechat, buildInlinedWechatHtml } from './services/wechatCopyService'
 import { resetImageStorage } from './services/imageStorage'
 import { useToast } from './composables/useToast'
@@ -388,6 +389,7 @@ const isSaved = computed(() => !editor.isModified)
         v-if="showMediaManager"
         @close="showMediaManager = false"
       />
+      <UpdateProgressDialog />
       <ToastMessage />
     </div>
   </div>

@@ -74,8 +74,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
       '@wailsio/runtime':
-        specifier: latest
-        version: 3.0.0-beta.16
+        specifier: 3.0.0-beta.25
+        version: 3.0.0-beta.25
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
@@ -1182,8 +1182,8 @@ packages:
   /@vue/shared@3.5.39:
     resolution: {integrity: sha512-l1rrBtBfTnmxvtsvdQDXltUUy8S1Y+ZaqdfUzmAnJkTd8Z8rv5v/ytW+TKiqEOWyHPoqtPlNFSs0lhRmYVSHVA==}
 
-  /@wailsio/runtime@3.0.0-beta.16:
-    resolution: {integrity: sha512-IzaYrUKYDmvWDXf3Pqfl0onT1R5T5YHTx+AnK9vX4MyuE1PF3lXZmQrtvtfYNAsBnL+9e+iCJvIROGhjyf1rew==}
+  /@wailsio/runtime@3.0.0-beta.25:
+    resolution: {integrity: sha512-VjymRlaTJWQULr94R4XivNypJUrWWxsNA+vi8aBhREri2JWg4UUJdMhBM9vzPC0cFWH3tioHNJgxpne36OynyA==}
     dev: false
 
   /ajv@6.15.0:
