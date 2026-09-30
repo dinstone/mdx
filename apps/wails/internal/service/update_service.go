@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -73,8 +75,9 @@ func getCachedResult() *CheckUpdateResult {
 //
 // On a newer release being found it emits an "updater:available" event for the
 // frontend to surface a notification; network/parse errors are swallowed
-// because a background check should fail silently. Dev builds pinned to
-// version "0.0.0" are skipped to avoid false-positive "update available" nags.
+// because a background check should fail silently. Dev builds (version 0.0.0,
+// lower than any release) run the check too — it always finds the newest
+// release, which is exactly what makes the update flow testable in dev.
 func (s *UpdateService) StartAutoCheck() {
 	autoMu.Lock()
 	if autoStarted {
@@ -83,11 +86,6 @@ func (s *UpdateService) StartAutoCheck() {
 	}
 	autoStarted = true
 	autoMu.Unlock()
-
-	if AppVersion() == "0.0.0" {
-		log.Printf("[updater] auto-check skipped in dev build (version 0.0.0)")
-		return
-	}
 
 	go func() {
 		// Give the app time to settle and the frontend time to register its
@@ -144,13 +142,120 @@ func (s *UpdateService) GetLastUpdate() *CheckUpdateResult {
 	return getCachedResult()
 }
 
-// InstallUpdate runs a full check + download + install. Used by the "立即更新"
-// button in the notification and by the Help menu.
+// InstallUpdate downloads and installs the pending update, then (in production)
+// restarts the app via the updater's helper. Used by the "立即更新" button in
+// the About/Sponsor dialog and the auto-update toast.
+//
+// Crucially, the download/install/restart runs in a goroutine and the function
+// returns immediately. This mirrors GujiStudio's design:
+//   - DownloadAndInstall / Restart are long-running; running them on the
+//     webview's JS→Go cgo call stack (goroutine 1, locked to thread) would
+//     block the UI and risk a cgo re-entrancy crash. Running them off-stack
+//     lets the frontend await resolve instantly while progress is streamed via
+//     events.
+//   - Progress is surfaced through two application-level events —
+//     "mdx:update:started" and "mdx:update:finished" — which the frontend
+//     UpdateProgressDialog subscribes to, exactly like GujiStudio's
+//     "guji:update:started" / "guji:update:finished". The wails updater's
+//     built-in "wails:updater:*" events are emitted as a bonus and drive the
+//     byte-level progress bar.
+//
+// Dev builds (IsDevBuild) download + verify but deliberately do NOT restart:
+// the wails dev watcher does not adopt a helper-restarted process, and the
+// downloaded release binary must never replace the dev binary mid-session. We
+// emit "mdx:update:finished" with devReady=true so the UI asks the user to
+// restart manually.
 func (s *UpdateService) InstallUpdate() error {
 	if updaterRef == nil {
 		return fmt.Errorf("updater not initialised")
 	}
-	return updaterRef.CheckAndInstall(context.Background())
+	go func() {
+		// Ensure there is a pending release to download. The user may have hit
+		// "立即更新" straight from the toast without an explicit Check; a prior
+		// Check (auto or manual) populates both the cache and the updater's
+		// pending release consumed by DownloadAndInstall.
+		if getCachedResult() == nil {
+			s.checkNow(false)
+		}
+
+		// Notify the frontend that the update has started — opens the progress
+		// window. Carry the version so the dialog can show "vX → vY".
+		if appRef != nil {
+			if r := getCachedResult(); r != nil {
+				appRef.Event.Emit("mdx:update:started", map[string]any{"version": r.Version})
+			} else {
+				appRef.Event.Emit("mdx:update:started", nil)
+			}
+		}
+
+		ctx := context.Background()
+		if err := updaterRef.DownloadAndInstall(ctx); err != nil {
+			log.Printf("[updater] download/install failed: %v", err)
+			if appRef != nil {
+				appRef.Event.Emit("mdx:update:finished", map[string]any{"error": friendlyUpdateError(err)})
+			}
+			return
+		}
+
+		if IsDevBuild() {
+			log.Printf("[updater] dev build: update downloaded, skip auto-restart (restart manually)")
+			if appRef != nil {
+				appRef.Event.Emit("mdx:update:finished", map[string]any{"devReady": true})
+			}
+			return
+		}
+
+		if err := updaterRef.Restart(ctx); err != nil {
+			log.Printf("[updater] restart failed: %v", err)
+			if appRef != nil {
+				appRef.Event.Emit("mdx:update:finished", map[string]any{"error": friendlyUpdateError(err)})
+			}
+		}
+	}()
+	return nil
+}
+
+// friendlyUpdateError translates the updater's technical errors into
+// user-facing Chinese. The original error is still logged; the frontend only
+// shows the friendly text.
+func friendlyUpdateError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	lower := strings.ToLower(msg)
+
+	if errors.Is(err, context.DeadlineExceeded) || strings.Contains(lower, "context deadline exceeded") {
+		return "下载超时，请检查网络连接或稍后重试"
+	}
+	if strings.Contains(lower, "client.timeout") && strings.Contains(lower, "reading body") {
+		return "下载超时，请检查网络连接或稍后重试"
+	}
+	if strings.Contains(lower, "timeout") || strings.Contains(lower, "timed out") {
+		return "网络连接超时，请检查网络后重试"
+	}
+	if strings.Contains(lower, "connection refused") {
+		return "无法连接到更新服务器，请检查网络或代理设置"
+	}
+	if strings.Contains(lower, "connection reset") || strings.Contains(lower, "reset by peer") {
+		return "网络连接被重置，请检查网络或稍后重试"
+	}
+	if strings.Contains(lower, "no such host") || strings.Contains(lower, "dial tcp") {
+		return "无法访问更新服务器，请检查网络连接"
+	}
+	if strings.Contains(lower, "checksum") || strings.Contains(lower, "digest") || strings.Contains(lower, "verification failed") {
+		return "更新包校验失败，请稍后重试"
+	}
+	if strings.Contains(lower, "signature") {
+		return "更新包签名验证失败，请稍后重试"
+	}
+	if strings.Contains(lower, "no pending release") {
+		return "未找到可下载的更新，请先检查更新"
+	}
+	if strings.Contains(lower, "not configured") || strings.Contains(lower, "updater not initialised") {
+		return "更新器未初始化"
+	}
+	return "更新失败：" + msg
 }
 
 // CheckUpdate performs a fresh, on-demand update check and returns the result
@@ -162,9 +267,6 @@ func (s *UpdateService) InstallUpdate() error {
 func (s *UpdateService) CheckUpdate() *CheckUpdateResult {
 	if updaterRef == nil {
 		return &CheckUpdateResult{Error: "更新器未初始化"}
-	}
-	if AppVersion() == "0.0.0" {
-		return &CheckUpdateResult{Error: "开发版本不支持更新检查"}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

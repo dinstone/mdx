@@ -1,0 +1,18 @@
+{
+  "updated": "2026-09-30",
+  "project": {
+    "name": "MDX",
+    "tagline": "更优雅的 Markdown 公众号排版工具",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/dinstone/mdx"
+  },
+  "sponsorLinks": {
+    "githubSponsors": "https://github.com/sponsors/dinstone",
+    "afdian": "https://afdian.com/a/<id>"
+  },
+  "milestones": [],
+  "sponsors": [
+      { "name": "张总", "amount": 500, "tier": "赞助者", "date": "2026-09-10", "message": "支持！", "link": "" },
+      { "name": "liuliu", "amount": 200, "tier": "赞助者", "date": "2026-09-08", "message": "加油！", "link": "" }
+    ]
+}

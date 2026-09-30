@@ -14,7 +14,7 @@
     !define INFO_PRODUCTNAME "MDX"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.4.3"
+    !define INFO_PRODUCTVERSION "1.4.4"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "(c) 2025, dinstone ltd"

@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "1.4.3"
+		"file_version": "1.4.4"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "1.4.3",
+			"ProductVersion": "1.4.4",
 			"CompanyName": "dinstone ltd",
 			"FileDescription": "Markdown Editor X",
 			"LegalCopyright": "(c) 2025, dinstone ltd",

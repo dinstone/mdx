@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { getImageStorage } from '../services/imageStorage'
+import { useWorkspaceStore } from '../stores/workspace'
 
 const props = defineProps<{
   html: string
@@ -23,14 +24,28 @@ let mermaidFailed = false
 
 const mermaidError = ref<string | null>(null)
 
-// blob URL 追踪，组件卸载时 revoke
-const _blobUrls: string[] = []
+// 图片 blob URL 缓存：key = `${wsId}:${hash}`
+// 跨输入复用同一 blob URL，避免每次敲字都重新 load + revoke 造成图片闪烁/刷新。
+const _imgBlobCache = new Map<string, string>()
+// 防止快速连续输入时同一张图被并发重复 load
+const _imgLoading = new Map<string, Promise<string | null>>()
 
+function wsId(): string {
+  try {
+    const ws = useWorkspaceStore().current
+    return ws?.id ?? ws?.path ?? 'default'
+  } catch {
+    return 'default'
+  }
+}
+
+// 组件卸载或切换工作空间时调用，撤销所有缓存的 blob URL
 function revokeBlobUrls() {
-  for (const url of _blobUrls) {
+  for (const url of _imgBlobCache.values()) {
     URL.revokeObjectURL(url)
   }
-  _blobUrls.length = 0
+  _imgBlobCache.clear()
+  _imgLoading.clear()
 }
 
 async function ensureMermaid(): Promise<boolean> {
@@ -50,33 +65,83 @@ async function ensureMermaid(): Promise<boolean> {
   }
 }
 
-/** 解析 HTML 中的 img:// 链接，替换为 blob URL */
+/**
+ * 解析 HTML 中的 img:// 链接，替换为 blob URL。
+ * 关键优化：命中缓存的图直接同步复用 blob URL（零 IO、零闪烁）；
+ * 仅首次出现或被清理过的图才走异步 load。
+ */
 async function resolveImageUrls() {
   if (!container.value) return
-  revokeBlobUrls()
 
-  const imgs = container.value.querySelectorAll('img[src^="img://"]')
+  const imgs = Array.from(
+    container.value.querySelectorAll<HTMLImageElement>('img[src^="img://"]'),
+  )
   if (imgs.length === 0) return
 
+  const ws = wsId()
+  const seen = new Set<string>()
+
+  // 第一轮：命中缓存的图同步替换（此时 DOM 刚由 v-html 重建，src 仍是 img://）
+  for (const el of imgs) {
+    const hash = el.src.replace('img://', '')
+    const key = `${ws}:${hash}`
+    seen.add(key)
+    const cached = _imgBlobCache.get(key)
+    if (cached) {
+      if (el.src !== cached) el.src = cached
+      continue
+    }
+  }
+
+  // 第二轮：真正缺失的图才异步加载
   const storage = await getImageStorage()
   // getImageStorage 是异步的，期间组件可能已销毁
   if (!container.value) return
 
-  const imgArray = Array.from(imgs) as HTMLImageElement[]
-  for (const img of imgArray) {
-    const hash = img.src.replace('img://', '')
-    try {
-      const blob = await storage.load(hash)
-      if (blob) {
-        const url = URL.createObjectURL(blob)
-        _blobUrls.push(url)
-        img.src = url
+  for (const el of imgs) {
+    const hash = el.src.replace('img://', '')
+    const key = `${ws}:${hash}`
+    if (_imgBlobCache.has(key)) continue // 第一轮已同步赋值
+
+    if (_imgLoading.has(key)) {
+      const url = await _imgLoading.get(key)
+      if (url && container.value) el.src = url
+      continue
+    }
+
+    const p = (async (): Promise<string | null> => {
+      try {
+        const blob = await storage.load(hash)
+        return blob ? URL.createObjectURL(blob) : null
+      } catch {
+        return null // 图片不存在，保留 img://（裂图）
       }
-    } catch {
-      // 图片不存在，保留原始 img:// URL（会显示为裂图）
+    })()
+    _imgLoading.set(key, p)
+    const url = await p
+    _imgLoading.delete(key)
+    if (!url) continue
+    _imgBlobCache.set(key, url)
+    if (container.value) el.src = url
+  }
+
+  // 清理本轮不再被引用的 blob URL，避免内存泄漏
+  for (const [key, url] of _imgBlobCache) {
+    if (!seen.has(key)) {
+      URL.revokeObjectURL(url)
+      _imgBlobCache.delete(key)
     }
   }
 }
+
+// 切换工作空间时，同一 hash 指向不同图片，清空缓存避免串台，并重新解析当前文档
+watch(
+  () => useWorkspaceStore().current?.id,
+  () => {
+    revokeBlobUrls()
+    nextTick(resolveImageUrls)
+  },
+)
 
 watch(
   () => props.html,
