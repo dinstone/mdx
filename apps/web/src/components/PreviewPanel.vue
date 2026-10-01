@@ -33,7 +33,7 @@ const _imgLoading = new Map<string, Promise<string | null>>()
 function wsId(): string {
   try {
     const ws = useWorkspaceStore().current
-    return ws?.id ?? ws?.path ?? 'default'
+    return ws?.path ?? 'default'
   } catch {
     return 'default'
   }
@@ -136,7 +136,7 @@ async function resolveImageUrls() {
 
 // 切换工作空间时，同一 hash 指向不同图片，清空缓存避免串台，并重新解析当前文档
 watch(
-  () => useWorkspaceStore().current?.id,
+  () => useWorkspaceStore().current?.path,
   () => {
     revokeBlobUrls()
     nextTick(resolveImageUrls)
