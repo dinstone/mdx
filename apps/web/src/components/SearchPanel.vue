@@ -6,6 +6,7 @@ import { findMatches } from '../utils/findMatches'
 
 interface Props {
   view: EditorView
+  nonce: number
 }
 
 const props = defineProps<Props>()
@@ -57,6 +58,18 @@ function updateMatchDecorations() {
   }
 }
 
+// 把编辑器当前选区带入搜索框并立即搜索；无选区时保留已输入词、仅聚焦
+function syncSelectionToSearch() {
+  const sel = props.view.state.selection.main
+  if (!sel.empty) {
+    searchText.value = props.view.state.doc.sliceString(sel.from, sel.to)
+    doSearch()
+    searchInputRef.value?.select()
+  }
+  searchInputRef.value?.focus()
+  updateMatchDecorations()
+}
+
 // 聚焦搜索输入框
 onMounted(() => {
   searchInputRef.value?.focus()
@@ -74,15 +87,17 @@ onMounted(() => {
     ]),
   })
 
-  // 预填编辑器当前选中的文字，并立即搜索（命中数 + 高亮）
-  const sel = props.view.state.selection.main
-  if (!sel.empty) {
-    searchText.value = props.view.state.doc.sliceString(sel.from, sel.to)
-    doSearch()
-    searchInputRef.value?.select()
-  }
-  updateMatchDecorations()
+  // 打开搜索时，把编辑器当前选区带入搜索框
+  syncSelectionToSearch()
 })
+
+// 面板已打开时再次按 Cmd/Ctrl+F：用最新选区刷新搜索框（覆盖旧内容）
+watch(
+  () => props.nonce,
+  () => {
+    syncSelectionToSearch()
+  },
+)
 
 onUnmounted(() => {
   if (searchTimer) clearTimeout(searchTimer)
