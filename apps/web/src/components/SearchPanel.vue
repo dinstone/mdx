@@ -35,6 +35,7 @@ const currentMatchDeco = Decoration.mark({ class: 'cm-find-match-current' })
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let skipNextDocChange = false
 let lastSearchedText = ''
+let windowKeydownHandler: ((e: KeyboardEvent) => void) | null = null
 
 // 根据当前 matches / currentIndex 构建命中装饰（全部命中浅色、当前命中深色）
 function buildMatchDecorations(): Extension {
@@ -89,6 +90,16 @@ onMounted(() => {
 
   // 打开搜索时，把编辑器当前选区带入搜索框
   syncSelectionToSearch()
+
+  // Esc 在任意焦点下都能关闭面板：焦点可能在编辑器而非输入框，
+  // 仅绑在 .search-panel div 上的 @keydown 收不到，这里补一层 window 监听
+  windowKeydownHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleClose()
+    }
+  }
+  window.addEventListener('keydown', windowKeydownHandler)
 })
 
 // 面板已打开时再次按 Cmd/Ctrl+F：用最新选区刷新搜索框（覆盖旧内容）
@@ -101,6 +112,10 @@ watch(
 
 onUnmounted(() => {
   if (searchTimer) clearTimeout(searchTimer)
+  if (windowKeydownHandler) {
+    window.removeEventListener('keydown', windowKeydownHandler)
+    windowKeydownHandler = null
+  }
   try {
     props.view.dispatch({
       effects: [searchCompartment.reconfigure([]), matchCompartment.reconfigure([])],
