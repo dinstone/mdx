@@ -38,6 +38,7 @@ const editorContainer = ref<HTMLDivElement>()
 const viewRef = ref<EditorView | null>(null)
 const isProgrammaticScroll = ref(false)
 const showSearch = ref(false)
+const searchNonce = ref(0)
 const highlightCompartment = new Compartment()
 const currentView = computed(() => viewRef.value as EditorView | null)
 const toast = useToast()
@@ -240,6 +241,8 @@ onMounted(() => {
     if (mod && e.key === 'f') {
       e.preventDefault()
       showSearch.value = true
+      // 递增 nonce：面板已打开时再次按快捷键，通知 SearchPanel 用最新选区刷新
+      searchNonce.value++
     }
     // 字体缩放：Cmd/Ctrl + = (放大)  /  Cmd/Ctrl + - (缩小)  /  Cmd/Ctrl + 0 (重置)
     if (mod && (e.key === '=' || e.key === '+')) {
@@ -388,7 +391,7 @@ defineExpose({
       @search="showSearch = true"
     />
 
-    <SearchPanel v-if="showSearch && currentView" :view="currentView" @close="showSearch = false" />
+    <SearchPanel v-if="showSearch && currentView" :view="currentView" :nonce="searchNonce" @close="showSearch = false" />
 
     <div class="editor-body-wrapper">
       <div ref="editorContainer" class="cm-container" />

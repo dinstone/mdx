@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { EditorView } from '@codemirror/view'
-import { Compartment, EditorSelection, StateEffect } from '@codemirror/state'
+import { EditorView, Decoration } from '@codemirror/view'
+import { Compartment, EditorSelection, StateEffect, type Extension, type Range } from '@codemirror/state'
 import { findMatches } from '../utils/findMatches'
 
 interface Props {
   view: EditorView
+  nonce: number
 }
 
 const props = defineProps<Props>()
@@ -28,9 +29,46 @@ const showReplace = ref(false)
 const searchInputRef = ref<HTMLInputElement>()
 
 const searchCompartment = new Compartment()
+const matchCompartment = new Compartment()
+const matchDeco = Decoration.mark({ class: 'cm-find-match' })
+const currentMatchDeco = Decoration.mark({ class: 'cm-find-match-current' })
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let skipNextDocChange = false
 let lastSearchedText = ''
+
+// 根据当前 matches / currentIndex 构建命中装饰（全部命中浅色、当前命中深色）
+function buildMatchDecorations(): Extension {
+  const docLen = props.view.state.doc.length
+  const ranges: Range<Decoration>[] = []
+  for (let i = 0; i < matches.value.length; i++) {
+    const m = matches.value[i]
+    const from = Math.min(m.from, docLen)
+    const to = Math.min(m.to, docLen)
+    if (from < 0 || to <= from) continue
+    ranges.push((i === currentIndex.value ? currentMatchDeco : matchDeco).range(from, to))
+  }
+  return EditorView.decorations.of(Decoration.set(ranges, true))
+}
+
+function updateMatchDecorations() {
+  try {
+    props.view.dispatch({ effects: matchCompartment.reconfigure(buildMatchDecorations()) })
+  } catch {
+    // view 可能已被销毁
+  }
+}
+
+// 把编辑器当前选区带入搜索框并立即搜索；无选区时保留已输入词、仅聚焦
+function syncSelectionToSearch() {
+  const sel = props.view.state.selection.main
+  if (!sel.empty) {
+    searchText.value = props.view.state.doc.sliceString(sel.from, sel.to)
+    doSearch()
+    searchInputRef.value?.select()
+  }
+  searchInputRef.value?.focus()
+  updateMatchDecorations()
+}
 
 // 聚焦搜索输入框
 onMounted(() => {
@@ -43,14 +81,30 @@ onMounted(() => {
     }
   })
   props.view.dispatch({
-    effects: StateEffect.appendConfig.of(searchCompartment.of(listener)),
+    effects: StateEffect.appendConfig.of([
+      searchCompartment.of(listener),
+      matchCompartment.of([]),
+    ]),
   })
+
+  // 打开搜索时，把编辑器当前选区带入搜索框
+  syncSelectionToSearch()
 })
+
+// 面板已打开时再次按 Cmd/Ctrl+F：用最新选区刷新搜索框（覆盖旧内容）
+watch(
+  () => props.nonce,
+  () => {
+    syncSelectionToSearch()
+  },
+)
 
 onUnmounted(() => {
   if (searchTimer) clearTimeout(searchTimer)
   try {
-    props.view.dispatch({ effects: searchCompartment.reconfigure([]) })
+    props.view.dispatch({
+      effects: [searchCompartment.reconfigure([]), matchCompartment.reconfigure([])],
+    })
   } catch {
     // view 可能已被销毁
   }
@@ -122,6 +176,11 @@ function doSearch() {
 // 切换选项后重新搜索
 watch([caseSensitive, useRegexp], () => {
   if (searchText.value) doSearch()
+})
+
+// 命中集合 / 当前命中变化时刷新编辑器内的高亮装饰
+watch([matches, currentIndex], () => {
+  updateMatchDecorations()
 })
 
 // 当前匹配项变化时滚动到视图
@@ -434,5 +493,18 @@ function matchCountText() {
 
 .replace-row .search-input {
   padding-right: 12px;
+}
+</style>
+
+<!-- 命中高亮装饰作用在 CodeMirror 内容区，必须全局生效（scoped 无法穿透 .cm-content） -->
+<style>
+.cm-find-match {
+  background: rgba(255, 196, 0, 0.32);
+  border-radius: 2px;
+}
+
+.cm-find-match-current {
+  background: rgba(255, 153, 0, 0.6);
+  border-radius: 2px;
 }
 </style>
