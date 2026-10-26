@@ -34,7 +34,6 @@ const canCheck = computed(() => isDesktop.value && status.value !== 'checking' &
 
 // ---- 关于页信息 & 远程赞助者名单 ----
 const loading = ref(false)
-const loadError = ref<string | null>(null)
 const data = ref<SponsorsData | null>(null)
 const wxError = ref(false)
 const HOMEPAGE = 'https://github.com/dinstone/mdx'
@@ -43,11 +42,9 @@ onMounted(loadSponsors)
 
 async function loadSponsors() {
   loading.value = true
-  loadError.value = null
   const r = await fetchSponsors()
   loading.value = false
   if (r.data) data.value = r.data
-  else loadError.value = r.error
 }
 
 const proj = computed(() => data.value?.project ?? {})
@@ -199,10 +196,6 @@ onBeforeUnmount(() => {
           <div class="ab-thanks">
             <h3>感谢以下赞助者 <span class="ab-count">（{{ sorted.length }}）</span></h3>
             <div v-if="loading" class="ab-state">正在拉取赞助者名单…</div>
-            <div v-else-if="loadError" class="ab-state err">
-              {{ loadError }}
-              <button class="ab-retry" @click="loadSponsors">重试</button>
-            </div>
             <ul v-else-if="sorted.length" class="ab-sp">
               <li v-for="(s, i) in sorted" :key="i">
                 <div class="ab-sp-left">
@@ -248,8 +241,8 @@ onBeforeUnmount(() => {
 .ab-x { width: 26px; height: 26px; border: 0; background: none; color: var(--text-secondary); font-size: 14px; cursor: pointer; border-radius: 6px; }
 .ab-x:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.ab-body { overflow: auto; flex: 1; }
-.ab-sec { padding: 4px 2px 8px; }
+.ab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ab-sec { padding: 4px 2px 8px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .ab-lead { font-size: 13px; line-height: 1.7; color: var(--text-primary); margin: 0 0 14px; }
 
 .ab-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
@@ -262,15 +255,16 @@ onBeforeUnmount(() => {
 .ab-install-err { font-size: 12px; color: #d4380d; margin: 6px 0 0; }
 
 .ab-state { font-size: 13px; color: var(--text-secondary); padding: 14px 0; text-align: center; }
-.ab-state.err { color: #d4380d; }
-.ab-retry { margin-left: 10px; border: 0.5px solid var(--border-light); background: var(--bg-hover); border-radius: 6px; padding: 3px 12px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
 
 .ab-wx-wrap { display: flex; justify-content: center; margin-top: 18px; margin-bottom: 16px; }
 .ab-wx { display: block; width: 180px; border-radius: 8px; border: var(--border-width, 1px) solid var(--border-light); }
 .ab-wx-fallback { font-size: 12px; color: var(--text-secondary); background: var(--bg-hover); border-radius: 8px; padding: 14px 16px; text-align: center; }
 .ab-wx-fallback code { font-size: 11px; color: var(--accent-primary, #07c160); }
 
-.ab-thanks h3 { font-size: 13px; color: var(--text-primary); margin: 4px 0 10px; }
+.ab-thanks { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.ab-thanks h3 { font-size: 13px; color: var(--text-primary); margin: 4px 0 10px; flex: none; }
+/* 仅赞助者列表滚动，整页不滚：列表占满 .ab-thanks 剩余高度并内部滚动 */
+.ab-thanks .ab-sp { overflow-y: auto; flex: 1; min-height: 0; padding-right: 4px; }
 .ab-count { color: var(--text-secondary); font-weight: 400; }
 .ab-sp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .ab-sp li { background: var(--bg-hover); border-radius: 9px; padding: 9px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

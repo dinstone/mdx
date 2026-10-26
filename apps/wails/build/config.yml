@@ -11,7 +11,7 @@ info:
   description: "Markdown Editor X" # The application description
   copyright: "(c) 2025, dinstone ltd" # Copyright text
   comments: "MDX Markdown Editor" # Comments
-  version: "1.5.1" # The application version
+  version: "1.5.2" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"
@@ -57,7 +57,7 @@ dev_mode:
       type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
-    - cmd: wails3 build DEV=true
+    - cmd: wails3 build DEV=true -tags private_mac_apis
       type: blocking
     - cmd: wails3 task run
       type: primary

@@ -167,15 +167,13 @@ function toggleAbout() {
   color: var(--accent-primary, #07c160);
 }
 
-/* 赞助入口：实心红底白心，经典「喜欢/赞助」语义色，醒目且与绿色导航项区分 */
+/* 赞助入口：按钮背景透明（不垫红底），仅爱心图标用品牌红实心 */
 .sys-item.sponsor {
-  background: #e0404f;
-  color: #fff;
-  box-shadow: 0 0 0 1px rgba(224, 64, 79, 0.35);
+  color: #e0404f;
 }
 .sys-item.sponsor:hover {
-  background: #c83342;
-  box-shadow: 0 0 0 1px rgba(224, 64, 79, 0.55);
+  background: var(--bg-hover);
+  color: #c83342;
 }
 
 .sys-bottom {

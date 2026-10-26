@@ -91,7 +91,8 @@ function slugify(text: string): string {
   if (!plain) return "heading";
 
   return plain
-    .replace(/[^\p{L}\p{N}\s-]+/gu, " ")
+    // WebKit（旧版 Safari）不支持 \p{L}/\p{N} 与后行断言，改用 ASCII 词字符 + CJK 区间
+    .replace(/[^\w\s\-一-龥]/g, " ")
     .trim()
     .replace(/[\s_-]+/g, "-")
     .toLowerCase();
