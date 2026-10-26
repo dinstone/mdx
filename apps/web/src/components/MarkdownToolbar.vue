@@ -21,6 +21,7 @@ const emit = defineEmits<{
   table: []
   clearFormat: []
   callout: [type: string]
+  hr: []
   search: []
 }>()
 
@@ -68,6 +69,8 @@ const icons: Record<string, string> = {
     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
   attachment:
     '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  hr:
+    '<line x1="3" y1="12" x2="21" y2="12"/>',
   search:
     '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   taskList:
@@ -198,6 +201,11 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+
+    <!-- 分割线 (---) -->
+    <button class="toolbar-btn" title="分割线 (---)" @click="emit('hr')">
+      <svg class="tool-svg" viewBox="0 0 24 24" v-html="icons.hr" />
+    </button>
 
     <span class="toolbar-sep" />
 

@@ -216,9 +216,9 @@ function stripMarkdown(text: string): string {
   s = s.replace(/\^([^^]+)\^/g, '$1')
   // 下标 ~x~
   s = s.replace(/~([^~]+)~/g, '$1')
-  // 斜体 *x* / _x_
-  s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
-  s = s.replace(/(?<!_)_([^_]+)_(?!_)/g, '$1')
+  // 斜体 *x* / _x_（WebKit 不支持后行断言 (?<!…)，改用前行断言 (?!)）
+  s = s.replace(/\*([^*]+)\*(?!\*)/g, '$1')
+  s = s.replace(/_([^_]+)_(?!_)/g, '$1')
   // HTML 标签（如下划线 <u></u>）
   s = s.replace(/<\/?[^>]+>/g, '')
   // 逐行清理块级前缀
@@ -473,6 +473,7 @@ defineExpose({
       @superscript="insertSnippet('^', '^')"
       @subscript="insertSnippet('~', '~')"
       @heading="(level: number) => insertSnippet('#'.repeat(level) + ' ', '')"
+      @hr="insertSnippet('\n---\n', '')"
       @unordered-list="insertSnippet('- ', '')"
       @ordered-list="insertSnippet('1. ', '')"
       @task-list="insertTaskList"

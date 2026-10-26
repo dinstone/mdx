@@ -34,7 +34,6 @@ const canCheck = computed(() => isDesktop.value && status.value !== 'checking' &
 
 // ---- 关于页信息 & 远程赞助者名单 ----
 const loading = ref(false)
-const loadError = ref<string | null>(null)
 const data = ref<SponsorsData | null>(null)
 const wxError = ref(false)
 const HOMEPAGE = 'https://github.com/dinstone/mdx'
@@ -43,11 +42,9 @@ onMounted(loadSponsors)
 
 async function loadSponsors() {
   loading.value = true
-  loadError.value = null
   const r = await fetchSponsors()
   loading.value = false
   if (r.data) data.value = r.data
-  else loadError.value = r.error
 }
 
 const proj = computed(() => data.value?.project ?? {})
@@ -199,10 +196,6 @@ onBeforeUnmount(() => {
           <div class="ab-thanks">
             <h3>感谢以下赞助者 <span class="ab-count">（{{ sorted.length }}）</span></h3>
             <div v-if="loading" class="ab-state">正在拉取赞助者名单…</div>
-            <div v-else-if="loadError" class="ab-state err">
-              {{ loadError }}
-              <button class="ab-retry" @click="loadSponsors">重试</button>
-            </div>
             <ul v-else-if="sorted.length" class="ab-sp">
               <li v-for="(s, i) in sorted" :key="i">
                 <div class="ab-sp-left">
@@ -262,8 +255,6 @@ onBeforeUnmount(() => {
 .ab-install-err { font-size: 12px; color: #d4380d; margin: 6px 0 0; }
 
 .ab-state { font-size: 13px; color: var(--text-secondary); padding: 14px 0; text-align: center; }
-.ab-state.err { color: #d4380d; }
-.ab-retry { margin-left: 10px; border: 0.5px solid var(--border-light); background: var(--bg-hover); border-radius: 6px; padding: 3px 12px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
 
 .ab-wx-wrap { display: flex; justify-content: center; margin-top: 18px; margin-bottom: 16px; }
 .ab-wx { display: block; width: 180px; border-radius: 8px; border: var(--border-width, 1px) solid var(--border-light); }
