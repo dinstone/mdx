@@ -284,11 +284,11 @@ function handleKeyDown(e: KeyboardEvent) {
 function handleInputChange(e: Event) {
   const value = (e.target as HTMLInputElement).value
   searchText.value = value
-  matches.value = []
-  currentIndex.value = 0
 
   if (searchTimer) clearTimeout(searchTimer)
   if (!value) {
+    matches.value = []
+    currentIndex.value = 0
     lastSearchedText = ''
     return
   }
@@ -299,7 +299,6 @@ function handleInputChange(e: Event) {
 
 function matchCountText() {
   if (!searchText.value) return ''
-  if (searchText.value !== lastSearchedText) return ''
   if (matches.value.length === 0) return '无匹配'
   return `${Math.min(currentIndex.value, matches.value.length - 1) + 1}/${matches.value.length}`
 }

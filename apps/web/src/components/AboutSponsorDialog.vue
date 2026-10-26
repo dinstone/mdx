@@ -248,8 +248,8 @@ onBeforeUnmount(() => {
 .ab-x { width: 26px; height: 26px; border: 0; background: none; color: var(--text-secondary); font-size: 14px; cursor: pointer; border-radius: 6px; }
 .ab-x:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.ab-body { overflow: auto; flex: 1; }
-.ab-sec { padding: 4px 2px 8px; }
+.ab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ab-sec { padding: 4px 2px 8px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .ab-lead { font-size: 13px; line-height: 1.7; color: var(--text-primary); margin: 0 0 14px; }
 
 .ab-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
@@ -270,7 +270,10 @@ onBeforeUnmount(() => {
 .ab-wx-fallback { font-size: 12px; color: var(--text-secondary); background: var(--bg-hover); border-radius: 8px; padding: 14px 16px; text-align: center; }
 .ab-wx-fallback code { font-size: 11px; color: var(--accent-primary, #07c160); }
 
-.ab-thanks h3 { font-size: 13px; color: var(--text-primary); margin: 4px 0 10px; }
+.ab-thanks { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.ab-thanks h3 { font-size: 13px; color: var(--text-primary); margin: 4px 0 10px; flex: none; }
+/* 仅赞助者列表滚动，整页不滚：列表占满 .ab-thanks 剩余高度并内部滚动 */
+.ab-thanks .ab-sp { overflow-y: auto; flex: 1; min-height: 0; padding-right: 4px; }
 .ab-count { color: var(--text-secondary); font-weight: 400; }
 .ab-sp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .ab-sp li { background: var(--bg-hover); border-radius: 9px; padding: 9px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
