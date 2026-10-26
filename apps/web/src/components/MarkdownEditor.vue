@@ -144,6 +144,97 @@ function insertSnippet(before: string, after = '', placeholder = '') {
   view.focus()
 }
 
+// 任务列表：在当前行（或所选每一行）行首插入 "- [ ] "
+function insertTaskList() {
+  const view = viewRef.value
+  if (!view) return
+  const { from, to } = view.state.selection.main
+  const doc = view.state.doc
+  const startLine = doc.lineAt(from).number
+  const endLine = doc.lineAt(to).number
+  const changes: { from: number; insert: string }[] = []
+  for (let i = startLine; i <= endLine; i++) {
+    changes.push({ from: doc.line(i).from, insert: '- [ ] ' })
+  }
+  view.dispatch({ changes })
+  view.focus()
+}
+
+// 清除格式：去掉选区内的 markdown 标记，仅保留纯文本
+function clearFormat() {
+  const view = viewRef.value
+  if (!view) return
+  const { from, to } = view.state.selection.main
+  if (from === to) return
+  const text = view.state.doc.sliceString(from, to)
+  const cleaned = stripMarkdown(text)
+  view.dispatch({
+    changes: { from, to, insert: cleaned },
+    selection: { anchor: from, head: from + cleaned.length },
+  })
+  view.focus()
+}
+
+// 插入高亮提示块（callout / GitHub Alert 语法 > [!TYPE]）
+function insertCallout(type: string) {
+  const view = viewRef.value
+  if (!view) return
+  const { from, to } = view.state.selection.main
+  const selected = view.state.doc.sliceString(from, to)
+  const body = selected || '内容'
+  // CAUTION 的默认标题是「危险」，按截图改为「注意」
+  const titleSuffix = type === 'CAUTION' ? ' 注意' : ''
+  const prefix = `> [!${type}]${titleSuffix}\n> `
+  const block = `${prefix}${body}\n`
+  view.dispatch({
+    changes: { from, to, insert: block },
+    selection: {
+      anchor: from + prefix.length,
+      head: from + prefix.length + body.length,
+    },
+  })
+  view.focus()
+}
+
+// 去除 markdown 语法，保留纯文本（用于「清除格式」）
+function stripMarkdown(text: string): string {
+  let s = text
+  // 图片 ![alt](url) -> alt
+  s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+  // 链接 [text](url) -> text
+  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+  // 行内代码 `code` -> code
+  s = s.replace(/`([^`]+)`/g, '$1')
+  // 粗体 **x** / __x__
+  s = s.replace(/\*\*([^*]+)\*\*/g, '$1')
+  s = s.replace(/__([^_]+)__/g, '$1')
+  // 删除线 ~~x~~
+  s = s.replace(/~~([^~]+)~~/g, '$1')
+  // 高亮 ==x==
+  s = s.replace(/==([^=]+)==/g, '$1')
+  // 上标 ^x^
+  s = s.replace(/\^([^^]+)\^/g, '$1')
+  // 下标 ~x~
+  s = s.replace(/~([^~]+)~/g, '$1')
+  // 斜体 *x* / _x_
+  s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+  s = s.replace(/(?<!_)_([^_]+)_(?!_)/g, '$1')
+  // HTML 标签（如下划线 <u></u>）
+  s = s.replace(/<\/?[^>]+>/g, '')
+  // 逐行清理块级前缀
+  s = s
+    .split('\n')
+    .map((line) => {
+      return line
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/^\s*>\s*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][^\n]*/i, '')
+        .replace(/^\s*>\s?/, '')
+        .replace(/^\s*(?:[-*+]|\d+\.)\s+(?:\[[ xX]\]\s+)?/, '')
+    })
+    .join('\n')
+  return s
+}
+
 // Sync external modelValue → CodeMirror (skip when CM already has the same content)
 watch(
   () => props.modelValue,
@@ -379,15 +470,20 @@ defineExpose({
       @italic="insertSnippet('*', '*')"
       @underline="insertSnippet('<u>', '</u>')"
       @strikethrough="insertSnippet('~~', '~~')"
+      @superscript="insertSnippet('^', '^')"
+      @subscript="insertSnippet('~', '~')"
       @heading="(level: number) => insertSnippet('#'.repeat(level) + ' ', '')"
       @unordered-list="insertSnippet('- ', '')"
       @ordered-list="insertSnippet('1. ', '')"
+      @task-list="insertTaskList"
       @code="insertSnippet('`', '`')"
       @quote="insertSnippet('> ', '')"
       @link="insertSnippet('[', '](url)')"
       @image-upload="onImageUpload"
       @attachment-upload="onAttachmentUpload"
       @table="insertSnippet('\n|  |  |\n|---|---|\n|  |  |\n', '')"
+      @clear-format="clearFormat"
+      @callout="insertCallout"
       @search="showSearch = true"
     />
 
